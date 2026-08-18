@@ -1,0 +1,49 @@
+# Déploie le jeu sur GitHub Pages à chaque push.
+# Nécessite un dépôt public (ou un compte GitHub payant pour un dépôt privé).
+name: Déployer sur GitHub Pages
+
+on:
+  push:
+    branches:
+      - claude/game-description-d44l9q
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Activer et configurer Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Préparer le site statique
+        run: |
+          mkdir _site
+          cp index.html style.css _site/
+          cp -r src vendor _site/
+
+      - name: Empaqueter le site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Déployer
+        id: deployment
+        uses: actions/deploy-pages@v4
