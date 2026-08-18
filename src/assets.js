@@ -225,6 +225,74 @@ export function softDotTexture() {
   return toTexture(c);
 }
 
+export function faceTexture() {
+  const s = 128;
+  const c = makeCanvas(s, s);
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, s, s);
+  // yeux
+  for (const side of [-1, 1]) {
+    const x = s / 2 + side * 20;
+    g.fillStyle = '#fff';
+    g.beginPath(); g.ellipse(x, 58, 11, 13, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#2a2018';
+    g.beginPath(); g.arc(x, 60, 5.5, 0, Math.PI * 2); g.fill();
+    // sourcil
+    g.strokeStyle = 'rgba(40,28,18,0.85)';
+    g.lineWidth = 5;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(x - 12, 40); g.quadraticCurveTo(x, 34, x + 12, 40);
+    g.stroke();
+  }
+  // bouche déterminée
+  g.strokeStyle = 'rgba(120,60,50,0.9)';
+  g.lineWidth = 5;
+  g.beginPath(); g.moveTo(s / 2 - 10, 92); g.quadraticCurveTo(s / 2, 96, s / 2 + 10, 92); g.stroke();
+  return toTexture(c);
+}
+
+export function concreteTexture() {
+  const s = 256;
+  const c = makeCanvas(s, s);
+  const g = c.getContext('2d');
+  g.fillStyle = '#9a9da4'; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 700; i++) {
+    g.fillStyle = `rgba(${60 + Math.random() * 60},${60 + Math.random() * 60},${70 + Math.random() * 60},0.12)`;
+    g.fillRect(Math.random() * s, Math.random() * s, 3, 3);
+  }
+  // dalles
+  g.strokeStyle = 'rgba(60,64,72,0.35)';
+  g.lineWidth = 3;
+  for (let i = 0; i <= 4; i++) {
+    g.beginPath(); g.moveTo((s / 4) * i, 0); g.lineTo((s / 4) * i, s); g.stroke();
+    g.beginPath(); g.moveTo(0, (s / 4) * i); g.lineTo(s, (s / 4) * i); g.stroke();
+  }
+  return toTexture(c);
+}
+
+export function helipadTexture() {
+  const s = 256;
+  const c = makeCanvas(s, s);
+  const g = c.getContext('2d');
+  g.fillStyle = '#3e434c'; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 400; i++) {
+    g.fillStyle = 'rgba(255,255,255,0.03)';
+    g.fillRect(Math.random() * s, Math.random() * s, 3, 3);
+  }
+  g.strokeStyle = '#e8c832';
+  g.lineWidth = 8;
+  g.beginPath(); g.arc(s / 2, s / 2, s * 0.36, 0, Math.PI * 2); g.stroke();
+  g.strokeStyle = '#f2f2f2';
+  g.lineWidth = 14;
+  g.beginPath();
+  g.moveTo(s / 2 - 30, s / 2 - 38); g.lineTo(s / 2 - 30, s / 2 + 38);
+  g.moveTo(s / 2 + 30, s / 2 - 38); g.lineTo(s / 2 + 30, s / 2 + 38);
+  g.moveTo(s / 2 - 30, s / 2); g.lineTo(s / 2 + 30, s / 2);
+  g.stroke();
+  return toTexture(c);
+}
+
 export function numberTexture(num, color) {
   const c = makeCanvas(128, 128);
   const g = c.getContext('2d');
