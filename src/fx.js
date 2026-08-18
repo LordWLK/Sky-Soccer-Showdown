@@ -104,6 +104,8 @@ export function createFx(scene) {
         }
         if (d.mesh.position.y < -70 || d.life > 6) {
           scene.remove(d.mesh);
+          d.mesh.geometry.dispose();
+          d.mesh.material.dispose();
           debris.splice(i, 1);
         }
       }

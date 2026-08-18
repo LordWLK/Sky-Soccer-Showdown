@@ -102,12 +102,54 @@ Une partie = une succession de **manches**. À chaque manche, les trois tireurs
 - Troisième raté = le personnage bascule dans le vide en moulinant des bras
   (chute cartoon, badge grisé). Aucun réalisme, uniquement du comique de situation.
 
+## 4 bis. Mode « Parcours » — le golf urbain
+
+> Deuxième mode de jeu, choisi sur l'écran titre à côté du **Duel**.
+> Ici le but est à 100–250 m : hors de portée d'un seul tir (~60 m max).
+> Il faut **naviguer de toit en toit**, comme au golf.
+
+### Boucle
+
+1. Le ballon part du toit de départ ; le but est visible au loin.
+2. Chaque coup se joue **là où le ballon s'est arrêté** : le tireur se
+   repositionne sur le toit avec lui, la caméra se replace derrière le ballon,
+   orientée vers le but.
+3. Se poser sur un toit intermédiaire = coup suivant depuis ce toit.
+   **Ballon dans le vide = +1 coup de pénalité**, on rejoue du même endroit.
+4. Ballon au fond de la cage = trou terminé : le score est le **nombre de
+   coups**, comparé au **par** du trou (nombre de sauts minimal + le tir au but).
+
+### Structure
+
+- Une partie = **3 trous** (par 3, par 4, par 5), de plus en plus longs et
+  tortueux : décalages latéraux (doglegs), toits plus hauts ou plus bas
+  (monter coûte de la portée), toits plus petits en fin de parcours.
+- **Vent à chaque coup** dès le trou 1 (léger, puis sensible) : c'est l'âme
+  du mode.
+- Appréciations golf à chaque trou (Eagle / Birdie / Par / Bogey…), carte de
+  score cumulée à la fin.
+- Les planches et l'élimination sont propres au Duel — au Parcours, la
+  sanction, c'est le coup de pénalité.
+- v0 : solo contre le par. Ensuite : rivaux IA trou par trou, choix du club
+  (cloche haute / tir tendu), toits spéciaux (héliports bonus, toits pentus).
+
+### Générations des parcours
+
+- Parcours générés par graine (seed) : suite de toits espacés de 28 à 42 m,
+  dérive latérale progressive, variation de hauteur ±4 m, dimensions 8–16 m.
+- Le toit final reprend la cage et le mini-terrain du Duel.
+
 ## 5. Présentation
 
 ### 5.1 Direction artistique
 
-- 3D stylisée low-poly : personnages trapus construits en primitives, gros ballon
-  (rayon exagéré pour la lisibilité).
+- 3D stylisée low-poly : personnages trapus, gros ballon (rayon exagéré pour
+  la lisibilité).
+- **Joueurs détaillés** (v0.2) : formes arrondies (capsules), membres articulés
+  en deux segments (genoux et coudes qui plient pendant la frappe), visage
+  (yeux, sourcils), coiffures propres à chaque joueur, cols et manches du
+  maillot, chaussettes rayées, crampons avec bout renforcé, écusson au torse,
+  numéro dans le dos. Célébration bras levés après un but.
 - **Palette** : tours bleu nuit constellées de fenêtres allumées, ciel crépusculaire
   pastel, pelouses vert saturé — sur lesquels tranchent les traînées néon et la
   grosse flèche rouge qui désigne votre tireur.
@@ -141,13 +183,15 @@ Une partie = une succession de **manches**. À chaque manche, les trois tireurs
   fonctionne hors-ligne). Aucun build, aucun bundler : un serveur statique suffit.
 - **Découpage** :
   - `index.html` / `style.css` — page, HUD, écrans (DOM par-dessus le canvas)
-  - `src/main.js` — bootstrap, boucle de rendu, redimensionnement
-  - `src/world.js` — ciel, ville, toits, cage, textures générées (canvas)
-  - `src/players.js` — tireurs, planches, badges drapeaux, flèche, animations
-  - `src/game.js` — machine à états, balistique, IA, score, manches
+  - `src/main.js` — bootstrap, boucle de rendu, entrées pointeur
+  - `src/world.js` — ciel, ville, toits, cage, parcours du mode golf
+  - `src/players.js` — tireurs articulés, planches, badges drapeaux, flèche
+  - `src/game.js` — machines à états (Duel et Parcours), balistique, IA, score
   - `src/fx.js` — traînées, confettis, débris
   - `src/audio.js` — synthèse WebAudio
   - `src/ui.js` — liaison DOM (HUD, écrans)
+  - `src/assets.js` — textures générées en canvas (drapeaux, fenêtres, visages…)
+  - `src/nations.js` — données des trois nations (couleurs, numéros, coiffures)
 - **Physique maison** : intégration semi-implicite (position/vitesse), aucune
   dépendance physique.
 

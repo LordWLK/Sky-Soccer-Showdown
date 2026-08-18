@@ -19,6 +19,7 @@
     <div id="round-box">
       <div id="round">Manche 1 / 8</div>
       <div id="wind">💨 vent nul</div>
+      <div id="strokes" class="hidden"></div>
     </div>
     <div id="hint" class="hidden"></div>
   </div>
@@ -34,6 +35,11 @@
         Le plus précis reste debout.</p>
       <p class="pick-label">Choisissez votre équipe</p>
       <div id="teams"></div>
+      <p class="pick-label">Choisissez votre défi</p>
+      <div id="modes">
+        <button class="mode selected" data-mode="duel">⚔️ <b>Duel</b><span>8 manches contre 2 rivaux — le plus précis reste debout</span></button>
+        <button class="mode" data-mode="golf">⛳ <b>Parcours</b><span>3 trous de toit en toit — battez le par</span></button>
+      </div>
       <button id="play-btn">⚽&nbsp;&nbsp;JOUER</button>
       <p class="rules">Glissez pour viser, relâchez pour tirer.<br>
         Un tir raté brise une planche — trois planches brisées et c'est la chute !</p>

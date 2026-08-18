@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import {
   skyTexture, cloudTexture, towerTextures, grassTexture, pitchTexture, netTexture,
+  concreteTexture, helipadTexture,
 } from './assets.js';
 
 export const ROOF_Y = 0;        // surface du toit des tireurs
@@ -90,12 +91,14 @@ export function buildWorld(scene) {
   targetRim.position.set(0, -0.36, -TARGET_DEPTH / 2);
   target.add(targetRim);
 
-  target.add(buildGoal());
+  const duelGoal = buildGoal();
+  duelGoal.position.set(0, 0, -GOAL_SETBACK);
+  target.add(duelGoal);
   scene.add(target);
 
   // ------------------------------------------------------------- ville ----
   const city = new THREE.Group();
-  buildCity(city);
+  const cityTowers = buildCity(city);
   scene.add(city);
 
   // ------------------------------------------------------------ nuages ----
@@ -117,17 +120,33 @@ export function buildWorld(scene) {
     targetZ: -26,
   };
   target.position.z = state.targetZ;
+  // le toit visible doit coïncider avec le toit de la physique
+  target.position.y = TARGET_ROOF_Y;
 
   return {
     group: target,
-    setDistance(d) {
+    scene,
+    setDistance(d, snap = false) {
       state.distance = d;
       state.targetZ = -d;
+      if (snap) target.position.z = state.targetZ; // rematch : pas de glissement
     },
-    // ligne de but en coordonnées monde
+    // ligne de but en coordonnées monde (mode Duel)
     goalLineZ() { return target.position.z - GOAL_SETBACK; },
     towerFrontZ() { return target.position.z; },
     towerBackZ() { return target.position.z - TARGET_DEPTH; },
+    setDuelTargetVisible(v) { target.visible = v; },
+    // masque les tours de la ville qui chevauchent un parcours
+    clearCorridor(boxes) {
+      for (const t of cityTowers) {
+        const hit = boxes.some((b) => Math.abs(t.x - b.x) < t.hw + b.hw + 7
+          && Math.abs(t.z - b.z) < t.hd + b.hd + 7);
+        if (hit) t.meshes.forEach((m) => { m.visible = false; });
+      }
+    },
+    restoreCity() {
+      for (const t of cityTowers) t.meshes.forEach((m) => { m.visible = true; });
+    },
     update(dt, t) {
       // la tour glisse en douceur vers sa nouvelle distance
       target.position.z += (state.targetZ - target.position.z) * Math.min(1, dt * 2.2);
@@ -187,12 +206,12 @@ function buildGoal() {
   topNet.position.set(0, GOAL_H - 0.06, -0.52);
   goal.add(topNet);
 
-  // la cage est posée sur le toit, ligne de but à z local = -GOAL_SETBACK
-  goal.position.set(0, 0, -GOAL_SETBACK);
+  // cage à l'origine, ligne de but à z local = 0, ouverte vers +z
   return goal;
 }
 
 function buildCity(city) {
+  const towers = [];
   const rand = mulberry32(20250818);
   const palettes = ['#16203a', '#1b2740', '#232c3e', '#141c30', '#1f2a52'];
   for (let i = 0; i < 46; i++) {
@@ -210,6 +229,7 @@ function buildCity(city) {
     const tower = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMaterial(tex));
     tower.position.set(x, h / 2 - 34, z);
     city.add(tower);
+    towers.push({ x, z, hw: w / 2, hd: d / 2, meshes: [tower] });
   }
   // clin d'œil à la tour géodésique de la pub, sur la droite
   const geo = new THREE.Mesh(
@@ -224,6 +244,116 @@ function buildCity(city) {
   );
   wire.position.copy(geo.position);
   city.add(wire);
+  towers.push({ x: 30, z: -55, hw: 12, hd: 12, meshes: [geo, wire] });
+  return towers;
+}
+
+// ============================================================== PARCOURS ==
+// Les trois trous du mode golf : plateformes en coordonnées absolues.
+// Le toit de départ (les tireurs) est commun à tous les trous.
+export const HOLES = [
+  {
+    name: 'Trou 1', par: 3,
+    platforms: [
+      { x: 6, z: -38, topY: -2, hw: 7, hd: 7, deco: 'concrete' },
+    ],
+    goal: { x: 2, z: -76, topY: -4, hw: 8, hd: 9 },
+  },
+  {
+    name: 'Trou 2', par: 4,
+    platforms: [
+      { x: -8, z: -40, topY: -3, hw: 6.5, hd: 6.5, deco: 'helipad' },
+      { x: 4, z: -78, topY: 1, hw: 6, hd: 6, deco: 'concrete' },
+    ],
+    goal: { x: 12, z: -116, topY: -2, hw: 7.5, hd: 9 },
+  },
+  {
+    name: 'Trou 3', par: 5,
+    platforms: [
+      { x: 8, z: -42, topY: -2, hw: 6, hd: 6, deco: 'concrete' },
+      { x: -6, z: -80, topY: -5, hw: 5.5, hd: 5.5, deco: 'helipad' },
+      { x: -14, z: -118, topY: 0, hw: 5, hd: 5, deco: 'concrete' },
+    ],
+    goal: { x: -6, z: -156, topY: -3, hw: 8, hd: 9 },
+  },
+];
+
+// Construit un trou : tours support, décors de toits, cage sur le toit final.
+// Retourne les plateformes (pour la physique) et les infos de la cage.
+export function buildCourse(scene, hole) {
+  const group = new THREE.Group();
+  const platforms = [
+    // le toit de départ fait partie du jeu (un tir trop court y retombe)
+    { x: 0, z: 8, topY: 0, hw: 15.5, hd: 11.5, isStart: true },
+  ];
+
+  const decoTex = {
+    grass: () => grassTexture(),
+    concrete: () => concreteTexture(),
+    helipad: () => helipadTexture(),
+  };
+
+  function addPlatform(p, deco) {
+    const h = 60;
+    const tex = towerTextures('#1b2740', 0.26);
+    const tower = new THREE.Mesh(
+      new THREE.BoxGeometry(p.hw * 2, h, p.hd * 2),
+      wallMaterial(tex),
+    );
+    tower.position.set(p.x, p.topY - h / 2, p.z);
+    group.add(tower);
+    const rim = new THREE.Mesh(
+      new THREE.BoxGeometry(p.hw * 2, 0.7, p.hd * 2),
+      new THREE.MeshLambertMaterial({ color: 0x83868d }),
+    );
+    rim.position.set(p.x, p.topY - 0.36, p.z);
+    group.add(rim);
+    const top = new THREE.Mesh(
+      new THREE.PlaneGeometry(p.hw * 2 - 0.8, p.hd * 2 - 0.8),
+      new THREE.MeshLambertMaterial({ map: decoTex[deco]() }),
+    );
+    top.rotation.x = -Math.PI / 2;
+    top.position.set(p.x, p.topY + 0.03, p.z);
+    top.receiveShadow = true;
+    group.add(top);
+    platforms.push({ x: p.x, z: p.z, topY: p.topY, hw: p.hw, hd: p.hd });
+  }
+
+  for (const p of hole.platforms) addPlatform(p, p.deco);
+
+  // toit final : pelouse à terrain + cage ouverte vers les tireurs (+z)
+  const gp = hole.goal;
+  addPlatform(gp, 'grass');
+  const pitch = new THREE.Mesh(
+    new THREE.PlaneGeometry(gp.hw * 2 - 1.6, gp.hd * 2 - 1.6),
+    new THREE.MeshLambertMaterial({ map: pitchTexture() }),
+  );
+  pitch.rotation.x = -Math.PI / 2;
+  pitch.rotation.z = Math.PI;
+  pitch.position.set(gp.x, gp.topY + 0.06, gp.z);
+  group.add(pitch);
+
+  const goal = buildGoal();
+  const goalLineZ = gp.z - 2;
+  goal.position.set(gp.x, gp.topY, goalLineZ);
+  group.add(goal);
+
+  scene.add(group);
+  return {
+    platforms,
+    goalInfo: { x: gp.x, lineZ: goalLineZ, roofY: gp.topY, platform: platforms[platforms.length - 1] },
+    boxes: platforms.map((p) => ({ x: p.x, z: p.z, hw: p.hw, hd: p.hd })),
+    dispose() {
+      scene.remove(group);
+      group.traverse((m) => {
+        if (m.isMesh) {
+          m.geometry.dispose();
+          if (m.material.map) m.material.map.dispose();
+          m.material.dispose();
+        }
+      });
+    },
+  };
 }
 
 function mulberry32(seed) {

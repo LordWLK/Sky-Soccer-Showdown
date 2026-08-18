@@ -14,12 +14,12 @@ il suffit de servir le dossier et d'ouvrir la page.
 
 ```bash
 # au choix :
-python3 -m http.server 8000
+python3 -m http.server 8000   # puis ouvrir http://localhost:8000
 # ou
-npx serve .
+npx serve .                   # puis ouvrir le port affiché (3000 par défaut)
 ```
 
-Puis ouvrir <http://localhost:8000> (fonctionne aussi hors-ligne).
+Fonctionne aussi hors-ligne.
 
 ## 🎮 Règles & contrôles
 

@@ -25,14 +25,17 @@ const game = createGame({ scene, camera, world, fx });
 window.__game = game; // utilisé par les tests automatisés
 
 initUI({
-  onPlay: (teamIdx) => {
+  onPlay: (teamIdx, mode) => {
     audio.unlock();
     audio.click();
-    game.startMatch(teamIdx);
+    if (mode === 'golf') game.startGolf(teamIdx);
+    else game.startMatch(teamIdx);
   },
   onReplay: () => {
     audio.click();
+    game.toTitle();
     ui.hide('#end-screen');
+    ui.hide('#hud');
     ui.show('#title-screen');
   },
   onSelectSound: () => {
@@ -49,14 +52,30 @@ window.addEventListener('resize', () => {
 
 const canvas = renderer.domElement;
 canvas.style.touchAction = 'none';
+// un seul pointeur pilote la visée : un second doigt est ignoré,
+// et une annulation système n'expédie jamais le tir
+let aimPointerId = null;
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
+  if (aimPointerId !== null) return;
+  aimPointerId = e.pointerId;
   canvas.setPointerCapture(e.pointerId);
   game.pointerDown(e.clientX, e.clientY);
 });
-canvas.addEventListener('pointermove', (e) => game.pointerMove(e.clientX, e.clientY));
-canvas.addEventListener('pointerup', () => game.pointerUp());
-canvas.addEventListener('pointercancel', () => game.pointerUp());
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== aimPointerId) return;
+  game.pointerMove(e.clientX, e.clientY);
+});
+canvas.addEventListener('pointerup', (e) => {
+  if (e.pointerId !== aimPointerId) return;
+  aimPointerId = null;
+  game.pointerUp();
+});
+canvas.addEventListener('pointercancel', (e) => {
+  if (e.pointerId !== aimPointerId) return;
+  aimPointerId = null;
+  game.pointerCancel();
+});
 
 const clock = new THREE.Clock();
 let elapsed = 0;

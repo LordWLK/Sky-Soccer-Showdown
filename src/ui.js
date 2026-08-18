@@ -5,12 +5,13 @@ import { flagBadgeDataURL } from './assets.js';
 const $ = (sel) => document.querySelector(sel);
 
 let selectedTeam = 0;
+let selectedMode = 'duel';
 let chipEls = [];
 
 export function initUI({ onPlay, onReplay, onSelectSound }) {
   const flags = NATIONS.map((n) => flagBadgeDataURL(n.id));
 
-  // --- écran titre : choix de la nation + JOUER
+  // --- écran titre : choix de la nation, du mode, puis JOUER
   const picker = $('#teams');
   NATIONS.forEach((n, i) => {
     const btn = document.createElement('button');
@@ -23,7 +24,14 @@ export function initUI({ onPlay, onReplay, onSelectSound }) {
     });
     picker.appendChild(btn);
   });
-  $('#play-btn').addEventListener('click', () => onPlay(selectedTeam));
+  document.querySelectorAll('#modes .mode').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      selectedMode = btn.dataset.mode;
+      document.querySelectorAll('#modes .mode').forEach((el) => el.classList.toggle('selected', el === btn));
+      onSelectSound?.();
+    });
+  });
+  $('#play-btn').addEventListener('click', () => onPlay(selectedTeam, selectedMode));
   $('#replay-btn').addEventListener('click', () => onReplay());
 
   // --- HUD : un badge par nation
@@ -49,9 +57,50 @@ export const ui = {
       el.classList.toggle('me', i === playerIdx);
       el.classList.remove('dead');
     });
+    this.show('#chips');
+    this.hide('#strokes');
     this.hide('#title-screen');
     this.hide('#end-screen');
     this.show('#hud');
+  },
+
+  startGolf() {
+    this.hide('#chips');
+    this.show('#strokes');
+    this.hide('#title-screen');
+    this.hide('#end-screen');
+    this.show('#hud');
+  },
+
+  setGolfHud(spec, holeCount, strokes, dist) {
+    $('#round').textContent = `⛳ ${spec.name} / ${holeCount} — Par ${spec.par}`;
+    $('#strokes').textContent = `Coups : ${strokes} · but à ${Math.round(dist)} m`;
+  },
+
+  showGolfEnd(rows, total, parTotal) {
+    const diff = total - parTotal;
+    const title = $('#end-title');
+    if (diff < 0) { title.textContent = `🏆 ${diff} SOUS LE PAR !`; title.className = 'win'; }
+    else if (diff === 0) { title.textContent = '🏆 DANS LE PAR !'; title.className = 'win'; }
+    else { title.textContent = `PARCOURS TERMINÉ : +${diff}`; title.className = ''; }
+    const box = $('#end-rows');
+    box.innerHTML = '';
+    rows.forEach((r) => {
+      const row = document.createElement('div');
+      row.className = 'end-row';
+      row.innerHTML = `<span class="end-name">⛳ ${r.name} — Par ${r.par}</span>
+        <span class="end-status">${r.label}</span>
+        <span class="end-score">${r.strokes}</span>`;
+      box.appendChild(row);
+    });
+    const totalRow = document.createElement('div');
+    totalRow.className = 'end-row me';
+    totalRow.innerHTML = `<span class="end-name">Total — Par ${parTotal}</span>
+      <span class="end-status">${diff > 0 ? `+${diff}` : diff === 0 ? 'par' : diff}</span>
+      <span class="end-score">${total}</span>`;
+    box.appendChild(totalRow);
+    this.hide('#hud');
+    this.show('#end-screen');
   },
 
   setRound(n, max, suddenDeath) {
@@ -115,7 +164,7 @@ export const ui = {
       row.className = 'end-row' + (i === playerIdx ? ' me' : '') + (s.alive ? '' : ' dead');
       row.innerHTML = `<img src="${flagBadgeDataURL(s.nation.id)}" alt="">
         <span class="end-name">${s.nation.name}${i === playerIdx ? ' (vous)' : ''}</span>
-        <span class="end-status">${s.alive ? '' : 'tombé au champ d’honneur'}</span>
+        <span class="end-status">${s.alive ? '' : 'tombée au champ d’honneur'}</span>
         <span class="end-score">${s.score}</span>`;
       rows.appendChild(row);
     });
