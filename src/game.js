@@ -238,8 +238,12 @@ export function createGame({ scene, camera, world, fx }) {
     const glz = world.goalLineZ();
     let di = 0;
     for (let step = 0; step < 110 && di < previewDots.length; step++) {
-      v.y -= G * dt; // le vent n'apparaît pas : à vous de compenser
-      pos.addScaledVector(v, dt);
+      // même intégration exacte que le vol réel ; le vent n'apparaît pas :
+      // à vous de compenser
+      pos.x += v.x * dt;
+      pos.y += v.y * dt - 0.5 * G * dt * dt;
+      pos.z += v.z * dt;
+      v.y -= G * dt;
       if (step % 3 === 0) {
         const dot = previewDots[di++];
         dot.position.copy(pos);
@@ -278,9 +282,14 @@ export function createGame({ scene, camera, world, fx }) {
     b.t += dt;
 
     const prev = b.mesh.position.clone();
-    b.vel.y -= G * dt;
+    // intégration cinématique exacte (accélération constante) : la trajectoire
+    // ne dépend pas du framerate et colle aux calculs analytiques (IA, aide)
+    const pos0 = b.mesh.position;
+    pos0.x += b.vel.x * dt + 0.5 * game.wind * dt * dt;
+    pos0.y += b.vel.y * dt - 0.5 * G * dt * dt;
+    pos0.z += b.vel.z * dt;
     b.vel.x += game.wind * dt;
-    b.mesh.position.addScaledVector(b.vel, dt);
+    b.vel.y -= G * dt;
     b.mesh.rotation.x -= (b.vel.length() / BALL_R) * dt * 0.35;
 
     if (b.state === 'flying') {
