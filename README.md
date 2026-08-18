@@ -9,8 +9,11 @@ jouable de *Top Eleven*. Le concept complet est décrit dans
 
 ## ▶️ Jouer
 
-Le jeu est 100 % statique (aucun build, Three.js embarqué dans `vendor/`) :
-il suffit de servir le dossier et d'ouvrir la page.
+**En ligne (mobile et bureau)** : <https://lordwlk.github.io/Sky-Soccer-Showdown/>
+— déployé automatiquement par GitHub Actions à chaque push.
+
+**En local** : le jeu est 100 % statique (aucun build, Three.js embarqué dans
+`vendor/`) : il suffit de servir le dossier et d'ouvrir la page.
 
 ```bash
 # au choix :
