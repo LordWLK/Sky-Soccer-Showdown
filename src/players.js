@@ -57,7 +57,7 @@ export class Shooter {
     this.badge.position.set(0, 3.75, 0);
     this.group.add(this.badge);
 
-    if (isPlayer) {
+    if (isPlayer && opts.arrow !== false) {
       this.arrow = buildArrow();
       this.arrow.position.set(0, 5.3, 0.5);
       this.group.add(this.arrow);

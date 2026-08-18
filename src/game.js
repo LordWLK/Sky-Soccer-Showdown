@@ -487,7 +487,8 @@ export function createGame({ scene, camera, world, fx }) {
     game.mode = 'golf';
     game.playerIdx = teamIdx;
     world.setDuelTargetVisible(false);
-    const s = new Shooter(scene, NATIONS[teamIdx], 0, true, { planks: false });
+    // seul en lice : pas de planches ni de flèche « VOUS »
+    const s = new Shooter(scene, NATIONS[teamIdx], 0, true, { planks: false, arrow: false });
     game.shooters.push(s);
     game.balls.push(makeBall(s));
     game.golf = { hole: 0, scores: [], course: null, strokes: 0 };
@@ -764,8 +765,9 @@ export function createGame({ scene, camera, world, fx }) {
     const w = window.innerWidth;
     const dx = x - game.aimStart.x;
     const dy = y - game.aimStart.y;
-    const len = Math.hypot(dx, dy);
-    game.rawPower = Math.min(POWER_MAX, (len / h) * 56);
+    // axes découplés : le vertical règle la puissance, l'horizontal la
+    // direction — sinon viser de biais gonfle la puissance à son insu
+    game.rawPower = Math.min(POWER_MAX, (Math.max(0, dy) / h) * 56);
     game.rawYaw = Math.max(-0.55, Math.min(0.55, -(dx / w) * 1.15));
   }
 
