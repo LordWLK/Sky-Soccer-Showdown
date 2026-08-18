@@ -1051,12 +1051,13 @@ export function createGame({ scene, camera, world, fx }) {
   }
 
   // fait vivre les rivales à leur rythme, dans tous les états du parcours
+  // (reçoit déjà le dt ralenti de la boucle principale)
   function updateRivals(dt) {
     const g = game.golf;
     if (!g) return;
     for (const r of g.rivals) {
       const b = game.balls[r.i];
-      updateGolfBall(b, sdt);
+      updateGolfBall(b, dt);
       if (g.frozen || r.holed || r.capped) continue;
       if (b.state === 'idle' || b.state === 'done') {
         r.think -= dt;
