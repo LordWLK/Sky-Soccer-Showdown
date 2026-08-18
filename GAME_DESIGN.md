@@ -1,0 +1,175 @@
+# Sky Soccer Showdown — Document de game design
+
+> Duel de frappes de précision au sommet des gratte-ciel.
+> Concept inspiré d'une publicité jouable de *Top Eleven* (voir « Référence visuelle » en fin de document).
+
+## 1. Vision
+
+- **Genre** : arcade / adresse (hyper-casual), matchs courts de 2 à 4 minutes.
+- **Plateforme cible** : navigateur web (souris **et** tactile), sans installation.
+- **Sensation recherchée** : le vertige du tir au-dessus du vide + la satisfaction
+  de la trajectoire parfaite qui finit en pleine lucarne.
+- **Une phrase** : *« Trois nations, un toit, un but de l'autre côté du vide :
+  le plus précis reste debout. »*
+
+## 2. Boucle de jeu
+
+```
+Choisir sa nation → Viser (glisser) → Tirer (relâcher)
+     ↑                                        ↓
+Manche suivante  ←  Résolution (buts, planches cassées, éliminations)
+(le but s'éloigne, le vent se lève)
+```
+
+Une partie = une succession de **manches**. À chaque manche, les trois tireurs
+(vous + deux IA) frappent leur ballon vers la cage posée sur le toit d'en face.
+
+- **But marqué** : +1 point.
+- **Tir raté** (dans le vide, sur la façade, à côté de la cage) : une planche de
+  votre plateforme se brise.
+- **3 planches brisées** : la plateforme cède, le tireur bascule dans le vide —
+  **éliminé**.
+
+### Fin de partie
+
+- Vous êtes éliminé → **défaite** (le score final des IA est affiché).
+- Les deux IA sont éliminées → **victoire immédiate**.
+- Au bout de **8 manches** : le meilleur score gagne. En cas d'égalité en tête,
+  **mort subite** : manches supplémentaires jusqu'à ce qu'un tireur se détache.
+
+## 3. Contrôles
+
+| Action | Souris | Tactile |
+|---|---|---|
+| Viser | cliquer-glisser (fronde : tirer vers le bas/l'arrière) | glisser le doigt |
+| Régler la puissance | longueur du glisser | idem |
+| Ajuster à gauche/droite | glisser latéralement (sens fronde, inversé) | idem |
+| Tirer | relâcher | lever le doigt |
+
+- Pendant la visée, une **prévisualisation en pointillés** montre la trajectoire
+  (sans le vent : compenser le vent, c'est le skill).
+- L'élévation du tir est fixe (~48°) : on ne règle que puissance et direction,
+  pour rester lisible sur mobile. La puissance est **lissée** (filtre les
+  tremblements de la main) et une **aide à la visée discrète** rentre les tirs
+  qui frôlent la cage à ~40 cm près — le tir en cloche est si sensible à la
+  puissance qu'un jeu sans aide serait injouable (validé par simulation).
+
+## 4. Systèmes de jeu
+
+### 4.1 Balistique
+
+- Gravité arcade (`g ≈ 18 m/s²`) pour des cloches lisibles et des vols de ~2 s.
+- Le ballon laisse une **traînée comète** aux couleurs de la nation
+  (Allemagne : or, Italie : cyan, Espagne : rose — comme dans la pub).
+
+### 4.2 La cible
+
+- Une cage (4,4 m × 2,0 m) sur un mini-terrain vert, au sommet de la tour d'en face.
+- Détection : le ballon franchit la ligne entre les poteaux, sous la barre → **BUT**.
+- Filet qui absorbe le ballon, confettis, gros « BUT ! » à l'écran.
+- Toucher le toit adverse sans marquer, la façade, ou tomber dans le vide → raté.
+
+### 4.3 Progression de la difficulté (par manche)
+
+| Manche | Distance du but | Vent |
+|---|---|---|
+| 1–2 | proche (~30 m) | aucun |
+| 3–4 | moyenne (~38 m) | léger |
+| 5–6 | lointaine (~46 m) | modéré |
+| 7–8+ | très lointaine (~54 m) | fort, variable |
+
+- Le **vent** est latéral, affiché dans le HUD (direction + force), tiré au sort à
+  chaque manche. Il dévie le ballon en vol mais n'apparaît pas dans la prévisualisation.
+- La tour cible **s'éloigne** entre les manches (animation de translation).
+
+### 4.4 Les adversaires IA
+
+- Chaque IA **exécute parfaitement** mais **vise un point dispersé** autour de la
+  bouche de la cage (dispersion gaussienne en mètres) : c'est le seul modèle qui
+  permette de régler son taux de réussite indépendamment de la distance
+  (une erreur sur la *puissance* donnerait des mètres d'écart, cf. simulation).
+- L'IA compense partiellement le vent (elle « lit » 55–95 % de sa force).
+- Sa précision **s'améliore au fil des manches** : ~70 % de réussite en manche 1,
+  ~94 % en manche 8 (≈ 1,5 raté par IA et par partie) — la fin de partie met la
+  pression. Réglages validés par simulation numérique (4 000 tirs par manche).
+- Les trois tirs partent quasi simultanément (léger décalage aléatoire), comme
+  dans la pub : trois comètes traversent le vide en même temps.
+
+### 4.5 Sanction d'échec — les planches
+
+- Chaque tireur démarre sur une pile de **3 planches** (affichées dans son badge HUD).
+- Un raté = une planche qui éclate (débris projetés, secousse).
+- Troisième raté = le personnage bascule dans le vide en moulinant des bras
+  (chute cartoon, badge grisé). Aucun réalisme, uniquement du comique de situation.
+
+## 5. Présentation
+
+### 5.1 Direction artistique
+
+- 3D stylisée low-poly : personnages trapus construits en primitives, gros ballon
+  (rayon exagéré pour la lisibilité).
+- **Palette** : tours bleu nuit constellées de fenêtres allumées, ciel crépusculaire
+  pastel, pelouses vert saturé — sur lesquels tranchent les traînées néon et la
+  grosse flèche rouge qui désigne votre tireur.
+- Lumière rasante et ombres portées longues (fin de journée).
+- Brume de profondeur pour asseoir l'échelle de la ville.
+
+### 5.2 Caméra
+
+- Posée derrière et au-dessus des tireurs, orientée vers la cage : le vide et la
+  cible se lisent d'un coup d'œil.
+- Léger suivi du ballon du joueur pendant le vol, puis retour en position.
+
+### 5.3 Interface
+
+- **Écran titre** : logo, choix de la nation (🇩🇪 🇮🇹 🇪🇸), bouton **JOUER** (clin
+  d'œil au bouton de la pub).
+- **HUD** : trois badges nation (score + planches restantes), numéro de manche,
+  indicateur de vent, message d'aide à la première visée.
+- **Messages** : « BUT ! », « Raté… », « Manche N », éliminations.
+- **Écran de fin** : victoire/défaite, tableau des scores, bouton rejouer.
+- Textes en **français** (localisation possible plus tard).
+
+### 5.4 Audio
+
+- Sons synthétisés en WebAudio (aucun asset externe) : impact de frappe,
+  carillon de but, bris de planche, chute.
+
+## 6. Architecture technique
+
+- **Stack** : HTML/CSS/JS (modules ES) + **Three.js** (vendorisé dans `vendor/`,
+  fonctionne hors-ligne). Aucun build, aucun bundler : un serveur statique suffit.
+- **Découpage** :
+  - `index.html` / `style.css` — page, HUD, écrans (DOM par-dessus le canvas)
+  - `src/main.js` — bootstrap, boucle de rendu, redimensionnement
+  - `src/world.js` — ciel, ville, toits, cage, textures générées (canvas)
+  - `src/players.js` — tireurs, planches, badges drapeaux, flèche, animations
+  - `src/game.js` — machine à états, balistique, IA, score, manches
+  - `src/fx.js` — traînées, confettis, débris
+  - `src/audio.js` — synthèse WebAudio
+  - `src/ui.js` — liaison DOM (HUD, écrans)
+- **Physique maison** : intégration semi-implicite (position/vitesse), aucune
+  dépendance physique.
+
+## 7. Feuille de route
+
+- **v0 — prototype jouable** *(cette itération)* : tout le §2 à §5 ci-dessus.
+- **v1 — polish** : vrais modèles/animations, sons enrichis, tutoriel, équilibrage
+  fin de l'IA, mode « série de tirs » solo (high score).
+- **v2 — idées** : gardien mobile sur les dernières manches, cibles bonus
+  (lucarne ×2), obstacles entre les toits (câbles, drones), duel local à 2,
+  déploiement GitHub Pages pour jouer sur mobile.
+
+## 8. Référence visuelle — la publicité d'origine
+
+- Toits d'une métropole au crépuscule ; tours bleu nuit aux fenêtres allumées,
+  une tour à façade géodésique à droite.
+- Trois joueurs côte à côte sur une pelouse de toit, chacun sur un tas de planches :
+  🇩🇪 Allemagne (blanc, n°5), 🇮🇹 Italie (bleu, n°12), 🇪🇸 Espagne (rouge/jaune, n°2),
+  médaillon-drapeau au-dessus de chacun.
+- Grosse flèche rouge cartoon sur le tireur contrôlé.
+- Cage blanche sur mini-terrain vert, sur le toit d'en face.
+- Trois ballons en vol, traînées comète graduées : or, cyan, rose.
+- Bouton « JOUER » (format *playable ad* ; le vrai *Top Eleven* est un jeu de
+  management — ce mini-jeu relève du gameplay publicitaire, repris ici comme
+  concept à part entière).
