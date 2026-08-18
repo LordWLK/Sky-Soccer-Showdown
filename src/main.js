@@ -84,6 +84,17 @@ canvas.addEventListener('pointercancel', (e) => {
   game.pointerCancel();
 });
 
+// Écran de démarrage : le logo reste au moins ~2,2 s depuis l'ouverture de
+// la page (performance.now() compte depuis la navigation), puis fondu.
+{
+  const splash = document.getElementById('splash');
+  const remaining = Math.max(350, 2200 - performance.now());
+  setTimeout(() => {
+    splash.classList.add('out');
+    setTimeout(() => splash.remove(), 750);
+  }, remaining);
+}
+
 // PWA : installable et jouable hors-ligne
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
