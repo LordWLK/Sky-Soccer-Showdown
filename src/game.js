@@ -469,6 +469,8 @@ export function createGame({ scene, camera, world, fx }) {
     game.aimStart.y = y;
     game.aimPower = 0;
     game.aimYaw = 0;
+    game.rawPower = 0;
+    game.rawYaw = 0;
   }
 
   function pointerMove(x, y) {
@@ -478,13 +480,8 @@ export function createGame({ scene, camera, world, fx }) {
     const dx = x - game.aimStart.x;
     const dy = y - game.aimStart.y;
     const len = Math.hypot(dx, dy);
-    // lissage : filtre les tremblements de la main sur les longs tirs
-    const rawPower = Math.min(POWER_MAX, (len / h) * 56);
-    const rawYaw = Math.max(-0.55, Math.min(0.55, -(dx / w) * 1.15));
-    game.aimPower += (rawPower - game.aimPower) * 0.5;
-    game.aimYaw += (rawYaw - game.aimYaw) * 0.6;
-    if (game.aimPower > POWER_MIN * 0.55) showPreview();
-    else hidePreview();
+    game.rawPower = Math.min(POWER_MAX, (len / h) * 56);
+    game.rawYaw = Math.max(-0.55, Math.min(0.55, -(dx / w) * 1.15));
   }
 
   function pointerUp() {
@@ -500,6 +497,18 @@ export function createGame({ scene, camera, world, fx }) {
 
   // ------------------------------------------------------------- update ----
 
+  // Lissage de la visée à constante de temps (~70 ms) : indépendant du
+  // framerate et des événements pointeur coalescés ; la prévisualisation
+  // reflète exactement la valeur qu'utilisera le tir.
+  function updateAiming(dt) {
+    if (!game.aiming) return;
+    const k = 1 - Math.exp(-dt * 14);
+    game.aimPower += (game.rawPower - game.aimPower) * k;
+    game.aimYaw += (game.rawYaw - game.aimYaw) * k;
+    if (game.aimPower > POWER_MIN * 0.55) showPreview();
+    else hidePreview();
+  }
+
   function update(dt) {
     const t = performance.now() * 0.001;
     for (const s of game.shooters) s.update(dt, t);
@@ -508,9 +517,11 @@ export function createGame({ scene, camera, world, fx }) {
     switch (game.state) {
       case 'intro':
         game.t += dt;
+        updateAiming(dt);
         if (game.t > 1.5) beginAim();
         break;
       case 'aim':
+        updateAiming(dt);
         break;
       case 'flight': {
         game.t += dt;
