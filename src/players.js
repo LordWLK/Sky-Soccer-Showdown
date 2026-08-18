@@ -79,6 +79,10 @@ export class Shooter {
 
   startKick() { this.kickT = 0; }
 
+  // pendant la visée, le badge (et la flèche) du joueur s'effacent
+  // pour ne pas masquer la trajectoire et la cage
+  setBadgeFaded(faded) { this.badgeFadeTarget = faded ? 0.1 : 1; }
+
   celebrate() { this.celebrateT = 0; }
 
   breakPlank(fx) {
@@ -136,6 +140,12 @@ export class Shooter {
     this.figure.position.y = y;
 
     this.badge.position.y = 3.75 + Math.sin(t * 1.7 + this.homeX * 2) * 0.08;
+    if (this.alive) {
+      const target = this.badgeFadeTarget ?? 1;
+      const mat = this.badge.material;
+      mat.opacity += (target - mat.opacity) * Math.min(1, dt * 8);
+      if (this.arrow) this.arrow.visible = mat.opacity > 0.5;
+    }
     if (this.arrow) {
       this.arrow.position.y = 5.3 + Math.sin(t * 3) * 0.22;
     }

@@ -1045,6 +1045,10 @@ export function createGame({ scene, camera, world, fx }) {
   function update(dt) {
     const t = performance.now() * 0.001;
     for (const s of game.shooters) s.update(dt, t);
+    // en phase de visée, le badge du joueur laisse la vue dégagée
+    if (game.shooters.length) {
+      playerShooter().setBadgeFaded(AIM_STATES.includes(game.state));
+    }
     updateCamera(dt);
 
     switch (game.state) {

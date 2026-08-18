@@ -16,7 +16,7 @@ export function initUI({ onPlay, onReplay, onSelectSound }) {
   NATIONS.forEach((n, i) => {
     const btn = document.createElement('button');
     btn.className = 'team' + (i === selectedTeam ? ' selected' : '');
-    btn.innerHTML = `<img src="${flags[i]}" alt=""><span>${n.name}</span><em>n°${n.number}</em>`;
+    btn.innerHTML = `<img src="${flags[i]}" alt=""><span>${n.name}</span>`;
     btn.addEventListener('click', () => {
       selectedTeam = i;
       picker.querySelectorAll('.team').forEach((el, j) => el.classList.toggle('selected', j === i));
