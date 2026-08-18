@@ -26,7 +26,8 @@ jobs:
       - name: Préparer le site statique
         run: |
           mkdir _site
-          cp index.html style.css _site/
+          cp index.html style.css manifest.webmanifest sw.js _site/
+          cp icon-192.png icon-512.png apple-touch-icon.png _site/
           cp -r src vendor _site/
           touch _site/.nojekyll
 

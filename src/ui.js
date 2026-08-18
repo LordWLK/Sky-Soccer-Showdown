@@ -1,38 +1,85 @@
 // Interface DOM par-dessus le canvas : écrans, HUD, messages.
 import { NATIONS } from './nations.js';
 import { flagBadgeDataURL } from './assets.js';
+import { recordDuel, recordGolf } from './records.js';
 
 const $ = (sel) => document.querySelector(sel);
 
+import { loadPrefs, savePrefs } from './records.js';
+
 let selectedTeam = 0;
+let selectedTeam2 = 1;
 let selectedMode = 'duel';
+let selectedDiff = 'normal';
 let chipEls = [];
 
-export function initUI({ onPlay, onReplay, onSelectSound }) {
-  const flags = NATIONS.map((n) => flagBadgeDataURL(n.id));
-
-  // --- écran titre : choix de la nation, du mode, puis JOUER
-  const picker = $('#teams');
+function buildTeamPicker(container, initial, onPick) {
   NATIONS.forEach((n, i) => {
     const btn = document.createElement('button');
-    btn.className = 'team' + (i === selectedTeam ? ' selected' : '');
-    btn.innerHTML = `<img src="${flags[i]}" alt=""><span>${n.name}</span>`;
+    btn.className = 'team' + (i === initial ? ' selected' : '');
+    btn.innerHTML = `<img src="${flagBadgeDataURL(n.id)}" alt=""><span>${n.name}</span>`;
     btn.addEventListener('click', () => {
-      selectedTeam = i;
-      picker.querySelectorAll('.team').forEach((el, j) => el.classList.toggle('selected', j === i));
-      onSelectSound?.();
+      container.querySelectorAll('.team').forEach((el, j) => el.classList.toggle('selected', j === i));
+      onPick(i);
     });
-    picker.appendChild(btn);
+    container.appendChild(btn);
+  });
+}
+
+export function initUI({ onPlay, onReplay, onSelectSound, onClub }) {
+  const flags = NATIONS.map((n) => flagBadgeDataURL(n.id));
+  selectedDiff = loadPrefs().difficulty;
+
+  // --- écran titre : nations (J1 et J2), mode, difficulté, puis JOUER
+  buildTeamPicker($('#teams'), selectedTeam, (i) => {
+    selectedTeam = i;
+    onSelectSound?.();
+  });
+  buildTeamPicker($('#teams2'), selectedTeam2, (i) => {
+    selectedTeam2 = i;
+    onSelectSound?.();
   });
   document.querySelectorAll('#modes .mode').forEach((btn) => {
     btn.addEventListener('click', () => {
       selectedMode = btn.dataset.mode;
       document.querySelectorAll('#modes .mode').forEach((el) => el.classList.toggle('selected', el === btn));
+      const two = selectedMode === 'duel2';
+      $('#teams2').classList.toggle('hidden', !two);
+      $('#teams2-label').classList.toggle('hidden', !two);
+      $('#teams-label').textContent = two ? 'Équipe du joueur 1' : 'Choisissez votre équipe';
       onSelectSound?.();
     });
   });
-  $('#play-btn').addEventListener('click', () => onPlay(selectedTeam, selectedMode));
+  document.querySelectorAll('#diffs .diffb').forEach((btn) => {
+    btn.classList.toggle('selected', btn.dataset.diff === selectedDiff);
+    btn.addEventListener('click', () => {
+      selectedDiff = btn.dataset.diff;
+      savePrefs({ difficulty: selectedDiff });
+      document.querySelectorAll('#diffs .diffb').forEach((el) => el.classList.toggle('selected', el === btn));
+      onSelectSound?.();
+    });
+  });
+  // choix du club pendant le Parcours
+  document.querySelectorAll('#club .clubb').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#club .clubb').forEach((el) => el.classList.toggle('selected', el === btn));
+      onClub?.(btn.dataset.club);
+    });
+  });
+  $('#play-btn').addEventListener('click', () => onPlay(selectedTeam, selectedMode, selectedDiff, selectedTeam2));
   $('#replay-btn').addEventListener('click', () => onReplay());
+  // partage du score : partage natif si possible, sinon copie
+  $('#share-btn').addEventListener('click', async () => {
+    const text = ui.shareText || `⚽ Sky Soccer Showdown ${location.href}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ text });
+      } else {
+        await navigator.clipboard.writeText(text);
+        ui.flash('Score copié !', 'small', 1.5);
+      }
+    } catch { /* partage annulé */ }
+  });
   return { flags };
 }
 
@@ -40,13 +87,16 @@ export const ui = {
   show(id) { $(id).classList.remove('hidden'); },
   hide(id) { $(id).classList.add('hidden'); },
 
-  // reconstruit les badges du HUD pour le trio de la partie en cours
-  buildChips(nations, playerIdx) {
+  // reconstruit les badges du HUD pour le trio de la partie en cours ;
+  // `me` : index du joueur (étiquette VOUS) ou {index: étiquette} à 2 joueurs
+  buildChips(nations, me) {
+    const meMap = typeof me === 'number' ? { [me]: 'VOUS' } : (me || {});
     const chips = $('#chips');
     chips.innerHTML = '';
     chipEls = nations.map((n, i) => {
       const el = document.createElement('div');
-      el.className = 'chip' + (i === playerIdx ? ' me' : '');
+      el.className = 'chip' + (meMap[i] ? ' me' : '');
+      el.dataset.label = meMap[i] || '';
       el.innerHTML = `<img src="${flagBadgeDataURL(n.id)}" alt="${n.name}">
         <div class="chip-info"><span class="chip-score">0</span>
         <div class="pips"><i></i><i></i><i></i></div></div>`;
@@ -55,14 +105,12 @@ export const ui = {
     });
   },
 
-  startMatch(playerIdx) {
-    chipEls.forEach((el, i) => {
-      el.classList.toggle('me', i === playerIdx);
-      el.classList.remove('dead');
-    });
+  startMatch() {
+    chipEls.forEach((el) => el.classList.remove('dead'));
     document.querySelector('#hud').classList.remove('golf');
     this.show('#chips');
     this.hide('#strokes');
+    this.hide('#club');
     this.hide('#title-screen');
     this.hide('#end-screen');
     this.show('#hud');
@@ -77,9 +125,16 @@ export const ui = {
     document.querySelector('#hud').classList.add('golf');
     this.show('#chips');
     this.show('#strokes');
+    this.show('#club');
     this.hide('#title-screen');
     this.hide('#end-screen');
     this.show('#hud');
+  },
+
+  syncClub(club) {
+    document.querySelectorAll('#club .clubb').forEach((el) => {
+      el.classList.toggle('selected', el.dataset.club === club);
+    });
   },
 
   setGolfHud(spec, holeCount, strokes, dist) {
@@ -121,6 +176,15 @@ export const ui = {
       totals.map((t, i) => `${t}<em>${diffs[i]}</em>`),
     )}`;
     box.appendChild(totalRow);
+
+    const rec = recordGolf(totals[playerIdx]);
+    const line = document.createElement('div');
+    line.className = 'end-record';
+    line.textContent = `${rec.newBest ? '⭐ NOUVEAU RECORD ! ' : ''}Meilleur parcours : ${rec.best} coups (par ${parTotal})`;
+    box.appendChild(line);
+    this.shareText = `⛳ Sky Soccer Showdown — Parcours bouclé en ${totals[playerIdx]} coups`
+      + ` (${diffs[playerIdx]}) avec ${nations[playerIdx].name} ! ${location.href}`;
+
     this.hide('#hud');
     this.show('#end-screen');
   },
@@ -186,7 +250,7 @@ export const ui = {
     }
   },
 
-  showEnd(title, cls, shooters, playerIdx) {
+  showEnd(title, cls, shooters, meMap = {}, result = null) {
     $('#end-title').textContent = title;
     $('#end-title').className = cls;
     const rows = $('#end-rows');
@@ -198,13 +262,26 @@ export const ui = {
     order.forEach((i) => {
       const s = shooters[i];
       const row = document.createElement('div');
-      row.className = 'end-row' + (i === playerIdx ? ' me' : '') + (s.alive ? '' : ' dead');
+      row.className = 'end-row' + (meMap[i] ? ' me' : '') + (s.alive ? '' : ' dead');
       row.innerHTML = `<img src="${flagBadgeDataURL(s.nation.id)}" alt="">
-        <span class="end-name">${s.nation.name}${i === playerIdx ? ' (vous)' : ''}</span>
+        <span class="end-name">${s.nation.name}${meMap[i] || ''}</span>
         <span class="end-status">${s.alive ? '' : 'tombée au champ d’honneur'}</span>
         <span class="end-score">${s.score}</span>`;
       rows.appendChild(row);
     });
+    if (result && result.mode === 'duel') {
+      const rec = recordDuel(result.playerScore, result.won);
+      const line = document.createElement('div');
+      line.className = 'end-record';
+      line.textContent = `${rec.newBest ? '⭐ NOUVEAU RECORD ! ' : ''}Record : ${rec.best} buts`
+        + ` · ${rec.wins} victoire${rec.wins > 1 ? 's' : ''} en ${rec.games} match${rec.games > 1 ? 's' : ''}`;
+      rows.appendChild(line);
+      this.shareText = `⚽ Sky Soccer Showdown — ${result.won ? 'Victoire' : 'Duel'} :`
+        + ` ${result.playerScore} but${result.playerScore > 1 ? 's' : ''} avec ${result.nation} !`
+        + ` ${location.href}`;
+    } else {
+      this.shareText = `⚽ Sky Soccer Showdown — ${title} ${location.href}`;
+    }
     this.hide('#hud');
     this.show('#end-screen');
   },

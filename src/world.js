@@ -1,9 +1,39 @@
 // Décor : ciel, ville, toit des tireurs, tour cible avec terrain et cage.
 import * as THREE from 'three';
 import {
-  skyTexture, cloudTexture, towerTextures, grassTexture, pitchTexture, netTexture,
+  cloudTexture, towerTextures, grassTexture, pitchTexture, netTexture,
   concreteTexture, helipadTexture,
 } from './assets.js';
+import { buildFigure } from './players.js';
+
+// registre des matériaux de façades : leurs fenêtres s'allument à la nuit
+const WALL_MATS = [];
+
+// ciel repeint dynamiquement entre jour et nuit
+function createSky() {
+  const c = document.createElement('canvas');
+  c.width = 2;
+  c.height = 512;
+  const g = c.getContext('2d');
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const DAY = [[0x6e, 0xa8, 0xe8], [0xa9, 0xc8, 0xea], [0xe3, 0xe2, 0xd8], [0xf0, 0xd9, 0xb8]];
+  const NIGHT = [[0x0a, 0x11, 0x28], [0x14, 0x1c, 0x3c], [0x23, 0x28, 0x48], [0x3a, 0x2c, 0x3e]];
+  const STOPS = [0, 0.55, 0.78, 1];
+  return {
+    tex,
+    paint(t) {
+      const grad = g.createLinearGradient(0, 0, 0, 512);
+      STOPS.forEach((stop, i) => {
+        const col = DAY[i].map((d, k) => Math.round(d + (NIGHT[i][k] - d) * t));
+        grad.addColorStop(stop, `rgb(${col[0]},${col[1]},${col[2]})`);
+      });
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 2, 512);
+      tex.needsUpdate = true;
+    },
+  };
+}
 
 export const ROOF_Y = 0;        // surface du toit des tireurs
 export const TARGET_ROOF_Y = -3; // surface du toit adverse (léger contrebas)
@@ -14,7 +44,9 @@ export const TARGET_HALF_W = 8;  // demi-largeur du toit adverse
 export const TARGET_DEPTH = 20;  // profondeur du toit adverse
 
 export function buildWorld(scene) {
-  scene.background = skyTexture();
+  const sky = createSky();
+  sky.paint(0);
+  scene.background = sky.tex;
   scene.fog = new THREE.Fog(0xd9e2ea, 70, 300);
 
   // ------------------------------------------------------------- lumières --
@@ -91,9 +123,20 @@ export function buildWorld(scene) {
   targetRim.position.set(0, -0.36, -TARGET_DEPTH / 2);
   target.add(targetRim);
 
-  const duelGoal = buildGoal();
+  const duelGoal = buildGoal(true); // lucarnes bonus signalées en or
   duelGoal.position.set(0, 0, -GOAL_SETBACK);
   target.add(duelGoal);
+
+  // gardien de but des manches avancées, face aux tireurs
+  const keeper = buildFigure({
+    shirt: 0x3a3f4a, shorts: 0x22252c, socks: 0x3a3f4a, accent: 0xf5d020,
+    skin: 0xd9a06b, hair: 0x1e1712, hairStyle: 'crew',
+    number: 1, numColor: '#f5d020',
+  });
+  keeper.rotation.y = Math.PI;
+  keeper.position.set(0, 0, -GOAL_SETBACK + 0.7);
+  keeper.visible = false;
+  target.add(keeper);
   scene.add(target);
 
   // ------------------------------------------------------------- ville ----
@@ -118,6 +161,9 @@ export function buildWorld(scene) {
   const state = {
     distance: 26,          // distance actuelle de la façade cible
     targetZ: -26,
+    tod: 0,                // heure du jour : 0 = jour, 1 = nuit
+    todTarget: 0,
+    keeper: { active: false, speed: 1, phase: 0 },
   };
   target.position.z = state.targetZ;
   // le toit visible doit coïncider avec le toit de la physique
@@ -136,6 +182,15 @@ export function buildWorld(scene) {
     towerFrontZ() { return target.position.z; },
     towerBackZ() { return target.position.z - TARGET_DEPTH; },
     setDuelTargetVisible(v) { target.visible = v; },
+    // heure du jour cible (0 jour → 1 nuit), transition douce dans update()
+    setDayNight(t) { state.todTarget = Math.max(0, Math.min(1, t)); },
+    setKeeper(active, speed = 1) {
+      state.keeper.active = active;
+      state.keeper.speed = speed;
+      keeper.visible = active;
+    },
+    keeperActive() { return state.keeper.active; },
+    keeperX() { return keeper.position.x; },
     // masque les tours de la ville qui chevauchent un parcours
     clearCorridor(boxes) {
       for (const t of cityTowers) {
@@ -154,6 +209,27 @@ export function buildWorld(scene) {
         clouds[i].position.x += dt * (1.2 + i * 0.25);
         if (clouds[i].position.x > 190) clouds[i].position.x = -190;
       }
+      // le soir tombe : ciel, soleil, brume et fenêtres évoluent ensemble
+      if (Math.abs(state.todTarget - state.tod) > 0.001) {
+        state.tod += (state.todTarget - state.tod) * Math.min(1, dt * 0.6);
+        const k = state.tod;
+        sky.paint(k);
+        sun.intensity = 1.6 - k * 1.05;
+        sun.color.setRGB(1 - k * 0.35, 0.945 - k * 0.28, 0.847 + k * 0.06);
+        hemi.intensity = 0.95 - k * 0.5;
+        scene.fog.color.setRGB(
+          (0xd9 - k * (0xd9 - 0x14)) / 255,
+          (0xe2 - k * (0xe2 - 0x1c)) / 255,
+          (0xea - k * (0xea - 0x34)) / 255,
+        );
+        for (const m of WALL_MATS) m.emissiveIntensity = 0.85 + k * 1.0;
+      }
+      // va-et-vient du gardien le long de sa ligne
+      if (state.keeper.active) {
+        state.keeper.phase += dt * state.keeper.speed;
+        keeper.position.x = Math.sin(state.keeper.phase) * (GOAL_W / 2 - 0.6);
+        keeper.rotation.z = -Math.cos(state.keeper.phase) * 0.12;
+      }
     },
   };
 }
@@ -165,10 +241,11 @@ function wallMaterial(tex) {
     emissiveMap: tex.emissiveMap,
     emissiveIntensity: 0.85,
   });
+  WALL_MATS.push(mat);
   return mat;
 }
 
-function buildGoal() {
+function buildGoal(withCorners = false) {
   const goal = new THREE.Group();
   const white = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x666666 });
   const r = 0.07;
@@ -205,6 +282,19 @@ function buildGoal() {
   topNet.rotation.x = -Math.PI / 2 + 0.18;
   topNet.position.set(0, GOAL_H - 0.06, -0.52);
   goal.add(topNet);
+
+  if (withCorners) {
+    // lucarnes bonus : panneaux dorés translucides dans les coins hauts
+    const cornerMat = new THREE.MeshBasicMaterial({
+      color: 0xffd75e, transparent: true, opacity: 0.28,
+      blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false,
+    });
+    for (const side of [-1, 1]) {
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.58), cornerMat);
+      panel.position.set(side * (GOAL_W / 2 - 0.44), GOAL_H - 0.33, 0.02);
+      goal.add(panel);
+    }
+  }
 
   // cage à l'origine, ligne de but à z local = 0, ouverte vers +z
   return goal;

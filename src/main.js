@@ -22,14 +22,21 @@ camera.position.set(0, 7.5, 16);
 const world = buildWorld(scene);
 const fx = createFx(scene);
 const game = createGame({ scene, camera, world, fx });
-window.__game = game; // utilisé par les tests automatisés
+window.__game = game; // utilisés par les tests automatisés
+window.__world = world;
 
 initUI({
-  onPlay: (teamIdx, mode) => {
+  onPlay: (teamIdx, mode, difficulty, team2Idx) => {
     audio.unlock();
     audio.click();
+    game.setDifficulty(difficulty);
     if (mode === 'golf') game.startGolf(teamIdx);
+    else if (mode === 'duel2') game.startMatch2(teamIdx, team2Idx);
     else game.startMatch(teamIdx);
+  },
+  onClub: (club) => {
+    audio.click();
+    game.setClub(club);
   },
   onReplay: () => {
     audio.click();
@@ -76,6 +83,13 @@ canvas.addEventListener('pointercancel', (e) => {
   aimPointerId = null;
   game.pointerCancel();
 });
+
+// PWA : installable et jouable hors-ligne
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => { /* hors PWA */ });
+  });
+}
 
 const clock = new THREE.Clock();
 let elapsed = 0;

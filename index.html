@@ -6,6 +6,11 @@
   <title>Sky Soccer Showdown</title>
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#101828">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <script type="importmap">
     { "imports": { "three": "./vendor/three.module.min.js" } }
   </script>
@@ -26,6 +31,10 @@
       <div id="gauge-goal"></div>
       <div id="gauge-fill"></div>
     </div>
+    <div id="club" class="hidden">
+      <button class="clubb selected" data-club="tendu">🎯 Tendu</button>
+      <button class="clubb" data-club="cloche">🌙 Cloche</button>
+    </div>
   </div>
 
   <!-- messages flottants (BUT !, Raté…) -->
@@ -37,12 +46,19 @@
       <h1>SKY SOCCER<br>SHOWDOWN</h1>
       <p class="tagline">Trois nations, un toit, un but de l'autre côté du vide.<br>
         Le plus précis reste debout.</p>
-      <p class="pick-label">Choisissez votre équipe</p>
+      <p class="pick-label" id="teams-label">Choisissez votre équipe</p>
       <div id="teams"></div>
+      <p class="pick-label hidden" id="teams2-label">Équipe du joueur 2</p>
+      <div id="teams2" class="hidden"></div>
       <p class="pick-label">Choisissez votre défi</p>
       <div id="modes">
         <button class="mode selected" data-mode="duel">⚔️ <b>Duel</b><span>8 manches contre 2 rivaux — le plus précis reste debout</span></button>
-        <button class="mode" data-mode="golf">⛳ <b>Parcours</b><span>3 trous de toit en toit — battez le par</span></button>
+        <button class="mode" data-mode="duel2">👥 <b>Duel à 2</b><span>2 joueurs sur cet écran + une IA — chacun son tir</span></button>
+        <button class="mode" data-mode="golf">⛳ <b>Parcours</b><span>3 trous de toit en toit contre 2 rivales</span></button>
+      </div>
+      <div id="diffs">
+        <button class="diffb selected" data-diff="normal">Normal</button>
+        <button class="diffb" data-diff="hard">🔥 Difficile</button>
       </div>
       <button id="play-btn">⚽&nbsp;&nbsp;JOUER</button>
       <p class="rules">Glissez pour viser, relâchez pour tirer.<br>
@@ -55,7 +71,10 @@
     <div class="panel">
       <h2 id="end-title">VICTOIRE !</h2>
       <div id="end-rows"></div>
-      <button id="replay-btn">↻&nbsp;&nbsp;REJOUER</button>
+      <div class="end-actions">
+        <button id="replay-btn">↻&nbsp;&nbsp;REJOUER</button>
+        <button id="share-btn">📤&nbsp;&nbsp;PARTAGER</button>
+      </div>
     </div>
   </div>
 

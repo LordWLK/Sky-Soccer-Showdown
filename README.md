@@ -26,18 +26,25 @@ Fonctionne aussi hors-ligne.
 
 ## 🎮 Règles & contrôles
 
-- **Choisissez votre nation** (🇩🇪 n°5, 🇮🇹 n°12 ou 🇪🇸 n°2), votre **défi**
-  (⚔️ Duel ou ⛳ Parcours — 3 trous de golf urbain contre les deux nations
-  rivales, qui jouent en même temps que vous), puis **JOUER**.
+- **Choisissez votre nation** (8 équipes), votre **défi** — ⚔️ Duel,
+  👥 Duel à 2 (deux joueurs sur le même écran + une IA) ou ⛳ Parcours
+  (3 trous de golf urbain contre deux rivales) — et votre **difficulté**
+  (Normal / 🔥 Difficile), puis **JOUER**.
 - **Glissez vers le bas** pour régler la puissance, **latéralement** pour la
   direction (une trajectoire en pointillés vous guide), **relâchez** pour tirer.
 - Chaque manche, les trois tireurs frappent : **but = +1 point**,
   **tir raté = une planche brisée**. Trois planches brisées → la plateforme
   cède et le tireur bascule dans le vide.
-- À partir de la manche 3, **le vent se lève** (affiché dans le HUD, invisible
-  dans la prévisualisation : à vous de compenser) et le but **s'éloigne**
-  à chaque manche.
+- Dès la manche 2, **le vent se lève** (affiché et audible, invisible dans la
+  prévisualisation : à vous de compenser) et le but **s'éloigne** à chaque
+  manche ; la nuit tombe au fil de la partie.
+- **Les lucarnes valent double** (coins dorés de la cage) et un **gardien**
+  monte sur le toit dans les dernières manches.
+- Au Parcours : deux clubs (🎯 tendu / 🌙 cloche), jauge de puissance avec
+  repère du but, marqueur d'atterrissage au bout de la trajectoire.
 - 8 manches ; meilleur score gagnant, mort subite en cas d'égalité.
+- **Records locaux** et bouton de partage sur l'écran de fin ; le jeu est une
+  **PWA** : installable sur l'écran d'accueil et jouable hors-ligne.
 
 ## 🗂 Structure
 

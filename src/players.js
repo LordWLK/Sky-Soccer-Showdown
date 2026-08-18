@@ -231,7 +231,8 @@ export class Shooter {
 
 // ---------------------------------------------------------------- figure --
 // Silhouette détaillée face au but (-z) ; la caméra voit le dos et le numéro.
-function buildFigure(nation) {
+// Exportée : le gardien de but du Duel réutilise le même constructeur.
+export function buildFigure(nation) {
   const g = new THREE.Group();
   const mat = {
     shirt: new THREE.MeshLambertMaterial({ color: nation.shirt }),

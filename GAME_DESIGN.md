@@ -222,12 +222,25 @@ sort** parmi les autres nations à chaque partie.
 
 ## 7. Feuille de route
 
-- **v0 — prototype jouable** *(cette itération)* : tout le §2 à §5 ci-dessus.
-- **v1 — polish** : vrais modèles/animations, sons enrichis, tutoriel, équilibrage
-  fin de l'IA, mode « série de tirs » solo (high score).
-- **v2 — idées** : gardien mobile sur les dernières manches, cibles bonus
-  (lucarne ×2), obstacles entre les toits (câbles, drones), duel local à 2,
-  déploiement GitHub Pages pour jouer sur mobile.
+- **v0 — prototype jouable** ✅ : tout le §2 à §5 ci-dessus.
+- **v1 — la grande passe** ✅ *(cette itération)* :
+  - **Lisibilité du tir** : marqueur d'atterrissage doré au bout de la
+    prévisualisation, ralenti-caméra sur les buts du joueur.
+  - **Duel enrichi** : lucarnes ×2 (coins dorés, l'IA les tente dès la
+    manche 4), gardien mobile sur les dernières manches (l'IA écarte alors
+    ses tirs), nuit qui tombe au fil des manches.
+  - **Parcours enrichi** : choix du club 🎯 tendu / 🌙 cloche (les rivales
+    sortent la cloche pour grimper).
+  - **Modes & réglages** : Duel local à 2 (J1 puis J2 sur le même écran,
+    une IA en trouble-fête), difficulté Normal / 🔥 Difficile (aide à la
+    visée, précision de l'IA, vent, arrivée du gardien).
+  - **Ambiance** : clameur de foule sur vos buts, souffle du vent audible,
+    vibrations mobiles, cycle jour → nuit.
+  - **Méta** : records locaux + partage de score, PWA installable et
+    jouable hors-ligne (manifest + service worker + icônes).
+- **v2 — idées** : obstacles entre les toits (câbles, grues, drones),
+  9-trous complet, toits spéciaux (héliport bonus, pentes), tournoi,
+  duel à 2 en ligne.
 
 ## 8. Référence visuelle — la publicité d'origine
 
