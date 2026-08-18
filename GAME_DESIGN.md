@@ -53,12 +53,16 @@ sort** parmi les autres nations à chaque partie.
 | Tirer | relâcher | lever le doigt |
 
 - Pendant la visée, une **prévisualisation en pointillés** montre la trajectoire
-  (sans le vent : compenser le vent, c'est le skill).
-- L'élévation du tir est fixe (~48°) : on ne règle que puissance et direction,
-  pour rester lisible sur mobile. La puissance est **lissée** (filtre les
-  tremblements de la main) et une **aide à la visée discrète** rentre les tirs
-  qui frôlent la cage à ~40 cm près — le tir en cloche est si sensible à la
-  puissance qu'un jeu sans aide serait injouable (validé par simulation).
+  (sans le vent : compenser le vent, c'est le skill), et une **jauge de
+  puissance** s'affiche sur le bord gauche, avec un repère ⚽ marquant la
+  puissance exacte du centre de la cage.
+- L'élévation du tir est fixe (~40°, frappe tendue) : on ne règle que puissance
+  et direction, pour rester lisible sur mobile. Le glisser est **linéaire en
+  distance** (la portée croît en v², donc v ∝ √glisser : tirer 2× plus loin =
+  glisser 2× plus long). La puissance est **lissée** (filtre les tremblements)
+  et une **aide à la visée discrète** rentre les tirs qui frôlent la cage à
+  ~30 cm près — le tir balistique est si sensible à la puissance qu'un jeu
+  sans aide serait injouable (validé par simulation).
 
 ## 4. Systèmes de jeu
 

@@ -227,6 +227,43 @@ h1 {
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
 }
 
+/* jauge de puissance pendant la visée ; ⚽ = puissance exacte du but */
+#gauge {
+  position: absolute;
+  left: 14px;
+  bottom: 12vh;
+  width: 14px;
+  height: 36vh;
+  background: rgba(12, 22, 48, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+}
+#gauge-fill {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  border-radius: 999px;
+  background: linear-gradient(0deg, #7fd8ff, #ffd75e 55%, #ff9d9d);
+  transition: height 0.05s linear;
+}
+#gauge-goal {
+  position: absolute;
+  left: -5px; right: -5px;
+  height: 3px;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.95);
+  z-index: 1;
+}
+#gauge-goal::after {
+  content: '⚽';
+  position: absolute;
+  left: 100%;
+  margin-left: 5px;
+  top: -8px;
+  font-size: 14px;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
+}
+
 #hint {
   position: absolute;
   bottom: 8vh; left: 50%;

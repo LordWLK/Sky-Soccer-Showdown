@@ -10,10 +10,11 @@ import {
 } from './world.js';
 
 const G = 18;                    // gravité arcade
-const ELEV = (48 * Math.PI) / 180; // élévation fixe des tirs
+const ELEV = (40 * Math.PI) / 180; // élévation des tirs : frappe tendue
 const BALL_R = 0.38;
 const POWER_MIN = 10;
-const POWER_MAX = 38;
+const POWER_MAX = 36;
+const DRAG_FULL = 0.62;          // fraction d'écran pour la puissance max
 const ROUNDS_MAX = 8;
 const ROUNDS_HARD_CAP = 14;      // au-delà : égalité
 const SHOOTER_X = [-5, 0, 5];
@@ -93,7 +94,8 @@ export function createGame({ scene, camera, world, fx }) {
 
   function rollWind() {
     if (game.round < 2) return 0;
-    const level = game.round < 4 ? 0.6 : game.round < 6 ? 0.9 : 1.25;
+    // trajectoires plus tendues = vols plus courts : vent renforcé d'autant
+    const level = game.round < 4 ? 0.7 : game.round < 6 ? 1.05 : 1.45;
     const mag = level * (0.4 + Math.random() * 0.6);
     return Math.round(mag * (Math.random() < 0.5 ? -1 : 1) * 10) / 10;
   }
@@ -193,6 +195,10 @@ export function createGame({ scene, camera, world, fx }) {
 
   function beginAim() {
     game.state = 'aim';
+    // repère de la jauge : puissance exacte pour le centre de la cage
+    const s = solveShot(playerShooter().ballStart(BALL_R),
+      new THREE.Vector3(0, TARGET_ROOF_Y + GOAL_H * 0.45, world.goalLineZ() - 0.2));
+    game.goalFrac = Math.min(1, (s.v / POWER_MAX) ** 2);
     // ne PAS toucher à game.aiming : une visée commencée pendant la bannière
     // doit survivre à la transition (sinon le tir du joueur est avalé)
     audio.whistle();
@@ -562,7 +568,7 @@ export function createGame({ scene, camera, world, fx }) {
   }
 
   function rollGolfWind() {
-    const level = [0.4, 0.7, 1.0][game.golf.hole] || 1;
+    const level = [0.5, 0.8, 1.15][game.golf.hole] || 1.15;
     if (Math.random() < 0.25) return 0;
     const mag = level * (0.3 + Math.random() * 0.7);
     return Math.round(mag * (Math.random() < 0.5 ? -1 : 1) * 10) / 10;
@@ -592,6 +598,13 @@ export function createGame({ scene, camera, world, fx }) {
     const dz = gi.lineZ - g.rest.z;
     g.heading = Math.atan2(dx, -dz);
     g.distToGoal = Math.hypot(dx, dz);
+    // repère de jauge seulement quand la cage est à portée
+    if (g.distToGoal < 55) {
+      const s = solveShot(g.rest, new THREE.Vector3(gi.x, gi.roofY + GOAL_H * 0.45, gi.lineZ - 0.2));
+      game.goalFrac = Math.min(1, (s.v / POWER_MAX) ** 2);
+    } else {
+      game.goalFrac = null;
+    }
     ui.setGolfHud(g.spec, HOLES.length, g.strokes, g.distToGoal);
     playerShooter().standAt(g.rest, g.groundY, g.heading);
     const b = playerBall();
@@ -633,12 +646,13 @@ export function createGame({ scene, camera, world, fx }) {
   }
 
   function golfBounce(b, platform) {
-    // atterrissage « golf » : le toit absorbe l'élan (un tir arrive à ~17 m/s,
-    // sans fort amortissement il roulerait toujours hors de la plateforme) —
-    // mais un ballon trop long peut encore finir dans le vide : c'est le jeu
-    b.vel.y *= -0.32;
-    b.vel.x *= 0.3;
-    b.vel.z *= 0.3;
+    // atterrissage « golf » : le toit absorbe l'élan (les frappes tendues
+    // arrivent à ~20 m/s, sans fort amortissement le ballon roulerait
+    // toujours hors de la plateforme) — mais un ballon trop long peut
+    // encore finir dans le vide : c'est le jeu
+    b.vel.y *= -0.26;
+    b.vel.x *= 0.22;
+    b.vel.z *= 0.22;
     if (b.vel.length() < 3) {
       b.state = 'done';
       b.vel.set(0, 0, 0);
@@ -1004,8 +1018,11 @@ export function createGame({ scene, camera, world, fx }) {
     const dx = x - game.aimStart.x;
     const dy = y - game.aimStart.y;
     // axes découplés : le vertical règle la puissance, l'horizontal la
-    // direction — sinon viser de biais gonfle la puissance à son insu
-    game.rawPower = Math.min(POWER_MAX, (Math.max(0, dy) / h) * 56);
+    // direction — sinon viser de biais gonfle la puissance à son insu.
+    // La portée croît en v² : v ∝ √(glisser) rend la relation
+    // doigt → distance LINÉAIRE (2× plus long = 2× plus loin).
+    const frac = Math.min(1, (Math.max(0, dy) / h) / DRAG_FULL);
+    game.rawPower = POWER_MAX * Math.sqrt(frac);
     game.rawYaw = Math.max(-0.55, Math.min(0.55, -(dx / w) * 1.15));
   }
 
@@ -1013,11 +1030,13 @@ export function createGame({ scene, camera, world, fx }) {
   function pointerCancel() {
     game.aiming = false;
     hidePreview();
+    ui.setGauge(false);
   }
 
   function pointerUp() {
     if (!game.aiming) return;
     game.aiming = false;
+    ui.setGauge(false);
     // le tir ne peut partir qu'une fois la manche réellement lancée
     if (game.state === 'aim' && game.aimPower >= POWER_MIN) {
       playerShoot();
@@ -1040,6 +1059,8 @@ export function createGame({ scene, camera, world, fx }) {
     game.aimYaw += (game.rawYaw - game.aimYaw) * k;
     if (game.aimPower > POWER_MIN * 0.55) showPreview();
     else hidePreview();
+    // la jauge affiche la fraction de PORTÉE (linéaire avec le glisser)
+    ui.setGauge(true, (game.aimPower / POWER_MAX) ** 2, game.goalFrac);
   }
 
   function update(dt) {

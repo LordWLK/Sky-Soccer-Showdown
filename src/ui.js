@@ -161,6 +161,21 @@ export const ui = {
     setTimeout(() => el.remove(), dur * 1000);
   },
 
+  // jauge de puissance latérale ; le repère ⚽ marque la puissance du but
+  setGauge(show, frac, goalFrac) {
+    const el = $('#gauge');
+    if (!show) { el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    $('#gauge-fill').style.height = `${Math.round(Math.min(1, frac) * 100)}%`;
+    const tick = $('#gauge-goal');
+    if (goalFrac == null) {
+      tick.style.display = 'none';
+    } else {
+      tick.style.display = 'block';
+      tick.style.bottom = `${Math.round(Math.min(1, goalFrac) * 100)}%`;
+    }
+  },
+
   hint(text) {
     const el = $('#hint');
     if (text) {
