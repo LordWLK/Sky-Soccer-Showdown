@@ -33,18 +33,6 @@ export function initUI({ onPlay, onReplay, onSelectSound }) {
   });
   $('#play-btn').addEventListener('click', () => onPlay(selectedTeam, selectedMode));
   $('#replay-btn').addEventListener('click', () => onReplay());
-
-  // --- HUD : un badge par nation
-  const chips = $('#chips');
-  chipEls = NATIONS.map((n, i) => {
-    const el = document.createElement('div');
-    el.className = 'chip';
-    el.innerHTML = `<img src="${flags[i]}" alt="${n.name}">
-      <div class="chip-info"><span class="chip-score">0</span>
-      <div class="pips"><i></i><i></i><i></i></div></div>`;
-    chips.appendChild(el);
-    return el;
-  });
   return { flags };
 }
 
@@ -52,11 +40,27 @@ export const ui = {
   show(id) { $(id).classList.remove('hidden'); },
   hide(id) { $(id).classList.add('hidden'); },
 
+  // reconstruit les badges du HUD pour le trio de la partie en cours
+  buildChips(nations, playerIdx) {
+    const chips = $('#chips');
+    chips.innerHTML = '';
+    chipEls = nations.map((n, i) => {
+      const el = document.createElement('div');
+      el.className = 'chip' + (i === playerIdx ? ' me' : '');
+      el.innerHTML = `<img src="${flagBadgeDataURL(n.id)}" alt="${n.name}">
+        <div class="chip-info"><span class="chip-score">0</span>
+        <div class="pips"><i></i><i></i><i></i></div></div>`;
+      chips.appendChild(el);
+      return el;
+    });
+  },
+
   startMatch(playerIdx) {
     chipEls.forEach((el, i) => {
       el.classList.toggle('me', i === playerIdx);
       el.classList.remove('dead');
     });
+    document.querySelector('#hud').classList.remove('golf');
     this.show('#chips');
     this.hide('#strokes');
     this.hide('#title-screen');
@@ -64,8 +68,14 @@ export const ui = {
     this.show('#hud');
   },
 
-  startGolf() {
-    this.hide('#chips');
+  startGolf(playerIdx) {
+    chipEls.forEach((el, i) => {
+      el.classList.toggle('me', i === playerIdx);
+      el.classList.remove('dead');
+    });
+    // au golf : pas de vies, la puce affiche le cumul de coups
+    document.querySelector('#hud').classList.add('golf');
+    this.show('#chips');
     this.show('#strokes');
     this.hide('#title-screen');
     this.hide('#end-screen');
@@ -77,27 +87,39 @@ export const ui = {
     $('#strokes').textContent = `Coups : ${strokes} · but à ${Math.round(dist)} m`;
   },
 
-  showGolfEnd(rows, total, parTotal) {
-    const diff = total - parTotal;
+  // carte de score à trois colonnes : une par nation, joueur surligné
+  showGolfEnd(holes, totals, parTotal, playerIdx, verdict, nations) {
     const title = $('#end-title');
-    if (diff < 0) { title.textContent = `🏆 ${diff} SOUS LE PAR !`; title.className = 'win'; }
-    else if (diff === 0) { title.textContent = '🏆 DANS LE PAR !'; title.className = 'win'; }
-    else { title.textContent = `PARCOURS TERMINÉ : +${diff}`; title.className = ''; }
+    title.textContent = verdict.title;
+    title.className = verdict.cls;
     const box = $('#end-rows');
     box.innerHTML = '';
-    rows.forEach((r) => {
+    const cells = (vals, cls = '') => vals.map((v, i) =>
+      `<span class="golf-cell${i === playerIdx ? ' me-cell' : ''} ${cls}">${v}</span>`).join('');
+
+    const head = document.createElement('div');
+    head.className = 'end-row golf-head';
+    head.innerHTML = `<span class="end-name"></span>${cells(nations.map(
+      (n) => `<img src="${flagBadgeDataURL(n.id)}" alt="${n.name}">`,
+    ))}`;
+    box.appendChild(head);
+
+    holes.forEach((h) => {
       const row = document.createElement('div');
       row.className = 'end-row';
-      row.innerHTML = `<span class="end-name">⛳ ${r.name} — Par ${r.par}</span>
-        <span class="end-status">${r.label}</span>
-        <span class="end-score">${r.strokes}</span>`;
+      row.innerHTML = `<span class="end-name">⛳ ${h.name} — Par ${h.par}</span>${cells(h.strokes)}`;
       box.appendChild(row);
     });
+
+    const diffs = totals.map((t) => {
+      const d = t - parTotal;
+      return d > 0 ? `+${d}` : d === 0 ? 'par' : d;
+    });
     const totalRow = document.createElement('div');
-    totalRow.className = 'end-row me';
-    totalRow.innerHTML = `<span class="end-name">Total — Par ${parTotal}</span>
-      <span class="end-status">${diff > 0 ? `+${diff}` : diff === 0 ? 'par' : diff}</span>
-      <span class="end-score">${total}</span>`;
+    totalRow.className = 'end-row golf-total';
+    totalRow.innerHTML = `<span class="end-name">Total — Par ${parTotal}</span>${cells(
+      totals.map((t, i) => `${t}<em>${diffs[i]}</em>`),
+    )}`;
     box.appendChild(totalRow);
     this.hide('#hud');
     this.show('#end-screen');

@@ -26,7 +26,9 @@ Fonctionne aussi hors-ligne.
 
 ## 🎮 Règles & contrôles
 
-- **Choisissez votre nation** (🇩🇪 n°5, 🇮🇹 n°12 ou 🇪🇸 n°2) puis **JOUER**.
+- **Choisissez votre nation** (🇩🇪 n°5, 🇮🇹 n°12 ou 🇪🇸 n°2), votre **défi**
+  (⚔️ Duel ou ⛳ Parcours — 3 trous de golf urbain contre les deux nations
+  rivales, qui jouent en même temps que vous), puis **JOUER**.
 - **Glissez vers le bas** pour régler la puissance, **latéralement** pour la
   direction (une trajectoire en pointillés vous guide), **relâchez** pour tirer.
 - Chaque manche, les trois tireurs frappent : **but = +1 point**,

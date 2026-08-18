@@ -92,8 +92,8 @@ export function createGame({ scene, camera, world, fx }) {
   const playerBall = () => game.balls[game.playerIdx];
 
   function rollWind() {
-    if (game.round < 3) return 0;
-    const level = game.round < 5 ? 0.5 : game.round < 7 ? 0.85 : 1.2;
+    if (game.round < 2) return 0;
+    const level = game.round < 4 ? 0.6 : game.round < 6 ? 0.9 : 1.25;
     const mag = level * (0.4 + Math.random() * 0.6);
     return Math.round(mag * (Math.random() < 0.5 ? -1 : 1) * 10) / 10;
   }
@@ -137,19 +137,32 @@ export function createGame({ scene, camera, world, fx }) {
     };
   }
 
+  // Le joueur au centre, deux nations rivales tirées au sort à ses côtés :
+  // la caméra est ainsi toujours exactement derrière votre tireur.
+  function buildRoster(teamIdx) {
+    const others = NATIONS.filter((_, i) => i !== teamIdx);
+    for (let i = others.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      [others[i], others[j]] = [others[j], others[i]];
+    }
+    game.roster = [others[0], NATIONS[teamIdx], others[1]];
+    game.playerIdx = 1;
+    ui.buildChips(game.roster, 1);
+  }
+
   function startMatch(teamIdx) {
     clearMatch();
     game.mode = 'duel';
-    game.playerIdx = teamIdx;
-    NATIONS.forEach((nation, i) => {
-      const s = new Shooter(scene, nation, SHOOTER_X[i], i === teamIdx);
+    buildRoster(teamIdx);
+    game.roster.forEach((nation, i) => {
+      const s = new Shooter(scene, nation, SHOOTER_X[i], i === game.playerIdx);
       game.shooters.push(s);
       game.balls.push(makeBall(s));
     });
     game.round = 1;
     game.hintShown = false;
     game.windAnnounced = false;
-    ui.startMatch(teamIdx);
+    ui.startMatch(game.playerIdx);
     ui.updateChips(game.shooters);
     startRound();
   }
@@ -215,9 +228,9 @@ export function createGame({ scene, camera, world, fx }) {
     const xLim = GOAL_W / 2 - 0.3;
     const out = vel.clone();
     const cy = Math.max(yLo, Math.min(yHi, y));
-    if (cy !== y && Math.abs(cy - y) <= 0.42) out.y += (cy - y) / t;
+    if (cy !== y && Math.abs(cy - y) <= 0.3) out.y += (cy - y) / t;
     const cx = Math.max(goal.x - xLim, Math.min(goal.x + xLim, x));
-    if (cx !== x && Math.abs(cx - x) <= 0.45) out.x += (cx - x) / t;
+    if (cx !== x && Math.abs(cx - x) <= 0.32) out.x += (cx - x) / t;
     return out;
   }
 
@@ -243,8 +256,8 @@ export function createGame({ scene, camera, world, fx }) {
   function aiVelocity(shooter) {
     const prog = Math.min(1, (game.round - 1) / 7);
     const start = shooter.ballStart(BALL_R);
-    const sigX = 1.1 - 0.4 * prog;
-    const sigY = 0.85 - 0.35 * prog;
+    const sigX = 0.95 - 0.35 * prog;
+    const sigY = 0.72 - 0.28 * prog;
     const target = new THREE.Vector3(
       gauss() * sigX,
       Math.max(TARGET_ROOF_Y - 0.6, TARGET_ROOF_Y + GOAL_H * 0.45 + gauss() * sigY),
@@ -252,7 +265,7 @@ export function createGame({ scene, camera, world, fx }) {
     );
     // compensation (imparfaite) du vent
     const first = solveShot(start, target);
-    const windRead = Math.min(0.95, 0.55 + 0.25 * prog + Math.random() * 0.2);
+    const windRead = Math.min(0.97, 0.65 + 0.25 * prog + Math.random() * 0.15);
     target.x -= 0.5 * game.wind * first.t * first.t * windRead;
     const shot = solveShot(start, target);
     return new THREE.Vector3(shot.dirX * cosE * shot.v, sinE * shot.v, shot.dirZ * cosE * shot.v);
@@ -485,14 +498,26 @@ export function createGame({ scene, camera, world, fx }) {
   function startGolf(teamIdx) {
     clearMatch();
     game.mode = 'golf';
-    game.playerIdx = teamIdx;
     world.setDuelTargetVisible(false);
-    // seul en lice : pas de planches ni de flèche « VOUS »
-    const s = new Shooter(scene, NATIONS[teamIdx], 0, true, { planks: false, arrow: false });
-    game.shooters.push(s);
-    game.balls.push(makeBall(s));
-    game.golf = { hole: 0, scores: [], course: null, strokes: 0 };
-    ui.startGolf();
+    buildRoster(teamIdx);
+    // les trois nations jouent le parcours ; pas de planches au golf
+    game.roster.forEach((nation, i) => {
+      const s = new Shooter(scene, nation, 0, i === game.playerIdx, { planks: false });
+      game.shooters.push(s);
+      const b = makeBall(s);
+      b.isPlayerBall = i === game.playerIdx;
+      game.balls.push(b);
+    });
+    game.golf = {
+      hole: 0, scores: [], course: null, strokes: 0,
+      totals: [0, 0, 0],
+      rivals: [0, 2].map((i) => ({
+        i, rest: new THREE.Vector3(), groundY: 0,
+        strokes: 0, holed: false, capped: false, think: 0,
+      })),
+      frozen: false,
+    };
+    ui.startGolf(game.playerIdx);
     startHole(0);
   }
 
@@ -509,6 +534,27 @@ export function createGame({ scene, camera, world, fx }) {
     world.clearCorridor(g.course.boxes);
     g.rest = new THREE.Vector3(0, BALL_R, 1.5);
     g.groundY = 0;
+    g.frozen = false;
+    // vent fixe pour le trou, annoncé une fois pour tout le monde
+    g.wind = rollGolfWind();
+    ui.setWind(g.wind);
+    // les rivales démarrent de part et d'autre du joueur
+    g.rivals.forEach((r, k) => {
+      r.rest.set(k === 0 ? -3.5 : 3.5, BALL_R, 1.5);
+      r.groundY = 0;
+      r.strokes = 0;
+      r.holed = false;
+      r.capped = false;
+      r.think = 1.4 + k * 1.2 + Math.random();
+      const b = game.balls[r.i];
+      b.state = 'idle';
+      b.resolved = true;
+      b.scored = false;
+      b.mesh.visible = true;
+      b.mesh.position.copy(r.rest);
+      game.shooters[r.i].standAt(r.rest, r.groundY, headingTo(r.rest));
+    });
+    golfChips();
     game.state = 'g_intro';
     game.t = 0;
     ui.flash(`⛳ ${g.spec.name} / ${HOLES.length} — Par ${g.spec.par}`, 'round', 1.9);
@@ -522,6 +568,22 @@ export function createGame({ scene, camera, world, fx }) {
     return Math.round(mag * (Math.random() < 0.5 ? -1 : 1) * 10) / 10;
   }
 
+  function headingTo(from) {
+    const gi = game.golf.course.goalInfo;
+    return Math.atan2(gi.x - from.x, -(gi.lineZ - from.z));
+  }
+
+  // au golf, la puce d'équipe affiche le cumul de coups (moins = mieux)
+  function golfChips() {
+    const g = game.golf;
+    game.shooters.forEach((s, i) => {
+      const cur = i === game.playerIdx ? g.strokes
+        : g.rivals.find((r) => r.i === i).strokes;
+      s.score = g.totals[i] + cur;
+    });
+    ui.updateChips(game.shooters);
+  }
+
   // repositionne tireur, ballon, caméra et HUD pour le coup à jouer
   function placeGolfShot() {
     const g = game.golf;
@@ -530,11 +592,9 @@ export function createGame({ scene, camera, world, fx }) {
     const dz = gi.lineZ - g.rest.z;
     g.heading = Math.atan2(dx, -dz);
     g.distToGoal = Math.hypot(dx, dz);
-    g.wind = rollGolfWind();
-    ui.setWind(g.wind);
     ui.setGolfHud(g.spec, HOLES.length, g.strokes, g.distToGoal);
-    game.shooters[0].standAt(g.rest, g.groundY, g.heading);
-    const b = game.balls[0];
+    playerShooter().standAt(g.rest, g.groundY, g.heading);
+    const b = playerBall();
     b.mesh.visible = true;
     b.mesh.position.copy(g.rest);
     b.state = 'idle';
@@ -552,13 +612,15 @@ export function createGame({ scene, camera, world, fx }) {
     vel = applyAssist(start, vel, gi, g.wind);
     g.strokes += 1;
     ui.setGolfHud(g.spec, HOLES.length, g.strokes, g.distToGoal);
-    const b = game.balls[0];
+    golfChips();
+    const b = playerBall();
     b.pendingVel = vel;
     b.kickAt = 0;
     b.launchAt = 0.2;
     b.state = 'wait';
     b.resolved = false;
     b.t = 0;
+    b.onResolve = (outcome, platform) => { game.golfOutcome = { outcome, platform }; };
     game.golfOutcome = null;
     game.state = 'g_flight';
     game.t = 0;
@@ -567,7 +629,7 @@ export function createGame({ scene, camera, world, fx }) {
   function resolveGolf(b, outcome, platform) {
     if (b.resolved) return;
     b.resolved = true;
-    game.golfOutcome = { outcome, platform };
+    if (b.onResolve) b.onResolve(outcome, platform);
   }
 
   function golfBounce(b, platform) {
@@ -629,8 +691,8 @@ export function createGame({ scene, camera, world, fx }) {
         b.scored = true;
         audio.goal();
         fx.burst(new THREE.Vector3(ix, iy, gi.lineZ), [0xffffff, b.shooter.nation.trail, 0xffe08a], 44, 5);
-        ui.flash('BUT ⚽ !', 'goal', 1.6);
-        game.shooters[0].celebrate();
+        if (b.isPlayerBall) ui.flash('BUT ⚽ !', 'goal', 1.6);
+        b.shooter.celebrate();
         resolveGolf(b, 'goal', gi.platform);
       }
     }
@@ -677,11 +739,178 @@ export function createGame({ scene, camera, world, fx }) {
     }
   }
 
+  // ------------------------------------------------------ rivales IA -------
+
+  // vitesse d'un coup rival : vise la prochaine plateforme (ou la cage à
+  // portée) avec une dispersion gaussienne et une lecture partielle du vent
+  function aiGolfVelocity(start) {
+    const g = game.golf;
+    const gi = g.course.goalInfo;
+    const dist = Math.hypot(gi.x - start.x, gi.lineZ - start.z);
+    let target;
+    if (dist < 55) {
+      target = new THREE.Vector3(
+        gi.x + gauss() * 1.0,
+        Math.max(gi.roofY - 0.5, gi.roofY + GOAL_H * 0.45 + gauss() * 0.68),
+        gi.lineZ - 0.2,
+      );
+    } else {
+      const ps = g.course.platforms;
+      let idx = ps.findIndex((p) => Math.abs(start.x - p.x) < p.hw + 0.6
+        && Math.abs(start.z - p.z) < p.hd + 0.6);
+      if (idx < 0) idx = 0;
+      const next = ps[Math.min(idx + 1, ps.length - 1)];
+      const sig = Math.min(next.hw, next.hd) * 0.34;
+      target = new THREE.Vector3(
+        next.x + gauss() * sig,
+        next.topY + BALL_R,
+        next.z + gauss() * sig,
+      );
+    }
+    const first = solveShot(start, target);
+    const read = 0.6 + Math.random() * 0.3;
+    target.x -= 0.5 * g.wind * first.t * first.t * read;
+    const s = solveShot(start, target);
+    return new THREE.Vector3(s.dirX * cosE * s.v, sinE * s.v, s.dirZ * cosE * s.v);
+  }
+
+  function rivalShoot(r) {
+    const g = game.golf;
+    r.strokes += 1;
+    golfChips();
+    const b = game.balls[r.i];
+    b.mesh.visible = true;
+    b.mesh.position.copy(r.rest);
+    b.pendingVel = aiGolfVelocity(r.rest.clone());
+    b.kickAt = 0;
+    b.launchAt = 0.2;
+    b.state = 'wait';
+    b.resolved = false;
+    b.scored = false;
+    b.t = 0;
+    b.onResolve = (outcome, platform) => {
+      if (outcome === 'goal') {
+        r.holed = true;
+        ui.flash(`⛳ ${game.roster[r.i].name} termine en ${r.strokes}`, 'small', 1.6);
+      } else if (outcome === 'landed') {
+        r.rest.copy(b.mesh.position);
+        r.groundY = platform.topY;
+        r.think = 1.8 + Math.random() * 1.6;
+        game.shooters[r.i].standAt(r.rest, r.groundY, headingTo(r.rest));
+      } else { // vide
+        r.strokes += 1;
+        golfChips();
+        b.mesh.visible = false;
+        r.think = 1.5 + Math.random();
+      }
+      if (!r.holed && r.strokes >= g.spec.par + 5) {
+        r.capped = true;
+        r.strokes = g.spec.par + 5;
+        b.mesh.visible = false;
+        golfChips();
+      }
+    };
+  }
+
+  // fait vivre les rivales à leur rythme, dans tous les états du parcours
+  function updateRivals(dt) {
+    const g = game.golf;
+    if (!g) return;
+    for (const r of g.rivals) {
+      const b = game.balls[r.i];
+      updateGolfBall(b, dt);
+      if (g.frozen || r.holed || r.capped) continue;
+      if (b.state === 'idle' || b.state === 'done') {
+        r.think -= dt;
+        if (r.think <= 0) rivalShoot(r);
+      }
+    }
+  }
+
+  // Résolution analytique d'un vol (sans animation) : but, toit ou vide.
+  // Sert à terminer les trous des rivales quand le joueur a fini avant elles.
+  function simFlight(start, vel) {
+    const g = game.golf;
+    const gi = g.course.goalInfo;
+    let tGoal = Infinity;
+    if (vel.z < -0.5) {
+      const t = (gi.lineZ - start.z) / vel.z;
+      if (t > 0.05) {
+        const x = start.x + vel.x * t + 0.5 * g.wind * t * t;
+        const y = start.y + vel.y * t - 0.5 * G * t * t;
+        if (Math.abs(x - gi.x) < GOAL_W / 2 - BALL_R * 0.35
+          && y > gi.roofY && y < gi.roofY + GOAL_H - BALL_R * 0.25) {
+          tGoal = t;
+        }
+      }
+    }
+    let best = null;
+    for (const p of g.course.platforms) {
+      const yp = p.topY + BALL_R;
+      const disc = vel.y * vel.y - 2 * G * (yp - start.y);
+      if (disc <= 0) continue;
+      const t = (vel.y + Math.sqrt(disc)) / G; // branche descendante
+      if (t <= 0.05) continue;
+      const x = start.x + vel.x * t + 0.5 * g.wind * t * t;
+      const z = start.z + vel.z * t;
+      if (Math.abs(x - p.x) < p.hw - 0.4 && Math.abs(z - p.z) < p.hd - 0.4
+        && (best === null || t < best.t)) {
+        best = { t, point: new THREE.Vector3(x, yp, z), platform: p };
+      }
+    }
+    if (tGoal < (best ? best.t : Infinity)) return { type: 'goal' };
+    if (best) return { type: 'landed', point: best.point, platform: best.platform };
+    return { type: 'void' };
+  }
+
+  function fastForwardRivals() {
+    const g = game.golf;
+    for (const r of g.rivals) {
+      const b = game.balls[r.i];
+      let pending = null; // vol en cours au moment du gel
+      if (b.state === 'flying' || b.state === 'wait') {
+        pending = b.state === 'flying'
+          ? { start: b.mesh.position.clone(), vel: b.vel.clone() }
+          : { start: r.rest.clone(), vel: b.pendingVel.clone() };
+        b.state = 'done';
+      }
+      let safety = 0;
+      while (!r.holed && !r.capped && safety++ < 12) {
+        let out;
+        if (pending) {
+          out = simFlight(pending.start, pending.vel); // coup déjà compté
+          pending = null;
+        } else {
+          r.strokes += 1;
+          out = simFlight(r.rest.clone(), aiGolfVelocity(r.rest.clone()));
+        }
+        if (out.type === 'goal') r.holed = true;
+        else if (out.type === 'landed') { r.rest.copy(out.point); r.groundY = out.platform.topY; }
+        else r.strokes += 1; // vide : pénalité
+        if (!r.holed && r.strokes >= g.spec.par + 5) {
+          r.capped = true;
+          r.strokes = g.spec.par + 5;
+        }
+      }
+      b.mesh.visible = false;
+    }
+    golfChips();
+  }
+
   function finishHole() {
     const g = game.golf;
-    const diff = g.strokes - g.spec.par;
-    g.scores.push({ name: g.spec.name, par: g.spec.par, strokes: g.strokes });
-    ui.flash(golfLabel(g.strokes, diff), diff <= 0 ? 'goal' : 'small', 2);
+    fastForwardRivals();
+    const strokes = [0, 1, 2].map((i) => (i === game.playerIdx ? g.strokes
+      : g.rivals.find((r) => r.i === i).strokes));
+    g.scores.push({ name: g.spec.name, par: g.spec.par, strokes });
+    strokes.forEach((s, i) => { g.totals[i] += s; });
+    g.rivals.forEach((r) => { r.strokes = 0; });
+    g.strokes = 0;
+    golfChips();
+    const diff = strokes[game.playerIdx] - g.spec.par;
+    ui.flash(golfLabel(strokes[game.playerIdx], diff), diff <= 0 ? 'goal' : 'small', 2);
+    const others = g.rivals.map((r) => `${game.roster[r.i].name} ${strokes[r.i]}`).join(' · ');
+    ui.flash(others, 'small', 2.4);
     if (diff <= -1) audio.win();
   }
 
@@ -697,11 +926,20 @@ export function createGame({ scene, camera, world, fx }) {
 
   function golfEnd() {
     const g = game.golf;
-    const total = g.scores.reduce((a, r) => a + r.strokes, 0);
     const parTotal = g.scores.reduce((a, r) => a + r.par, 0);
-    const diff = total - parTotal;
-    audio[diff <= 0 ? 'win' : 'lose']();
-    ui.showGolfEnd(g.scores.map((r) => ({ ...r, label: golfLabel(r.strokes, r.strokes - r.par) })), total, parTotal);
+    const totals = g.totals;
+    const best = Math.min(...totals);
+    const winners = [0, 1, 2].filter((i) => totals[i] === best);
+    let verdict;
+    if (winners.length === 1 && winners[0] === game.playerIdx) {
+      verdict = { title: '🏆 VICTOIRE !', cls: 'win', sound: 'win' };
+    } else if (winners.includes(game.playerIdx)) {
+      verdict = { title: 'ÉGALITÉ EN TÊTE', cls: 'win', sound: 'win' };
+    } else {
+      verdict = { title: '💥 DÉFAITE…', cls: 'lose', sound: 'lose' };
+    }
+    audio[verdict.sound]();
+    ui.showGolfEnd(g.scores, totals, parTotal, game.playerIdx, verdict, game.roster);
     game.state = 'over';
     game.endInfo = null;
   }
@@ -852,6 +1090,7 @@ export function createGame({ scene, camera, world, fx }) {
       case 'g_intro':
         game.t += dt;
         updateAiming(dt);
+        updateRivals(dt);
         if (game.t > 1.7) {
           game.state = 'g_aim';
           audio.whistle();
@@ -863,11 +1102,13 @@ export function createGame({ scene, camera, world, fx }) {
         break;
       case 'g_aim':
         updateAiming(dt);
+        updateRivals(dt);
         break;
       case 'g_flight': {
         game.t += dt;
-        const b = game.balls[0];
+        const b = playerBall();
         updateGolfBall(b, dt);
+        updateRivals(dt);
         if (b.resolved && game.golfOutcome) {
           const { outcome, platform } = game.golfOutcome;
           game.golfOutcome = null;
@@ -884,12 +1125,14 @@ export function createGame({ scene, camera, world, fx }) {
           } else { // but !
             game.state = 'g_hole';
             game.holeDone = false;
+            g.frozen = true; // les rivales seront résolues en accéléré
           }
           // limite golf : à par+5, le trou est ramassé
           if (outcome !== 'goal' && g.strokes >= g.spec.par + 5) {
             ui.flash('Limite de coups atteinte…', 'small', 1.9);
             game.state = 'g_hole';
             game.holeDone = false;
+            g.frozen = true;
           }
           game.t = 0;
         }
@@ -897,7 +1140,8 @@ export function createGame({ scene, camera, world, fx }) {
       }
       case 'g_move':
         game.t += dt;
-        updateGolfBall(game.balls[0], dt);
+        updateGolfBall(playerBall(), dt);
+        updateRivals(dt);
         if (game.t > 1.2) {
           placeGolfShot();
           game.state = 'g_aim';
@@ -905,12 +1149,13 @@ export function createGame({ scene, camera, world, fx }) {
         break;
       case 'g_hole':
         game.t += dt;
-        updateGolfBall(game.balls[0], dt); // le ballon finit sa course au filet
+        updateGolfBall(playerBall(), dt); // le ballon finit sa course au filet
+        updateRivals(dt); // les vols rivaux en cours se terminent à l'écran
         if (!game.holeDone && game.t > 1.3) {
           game.holeDone = true;
           finishHole();
         }
-        if (game.holeDone && game.t > 3.4) {
+        if (game.holeDone && game.t > 3.9) {
           if (game.golf.hole < HOLES.length - 1) startHole(game.golf.hole + 1);
           else golfEnd();
         }

@@ -24,6 +24,12 @@ Manche suivante  ←  Résolution (buts, planches cassées, éliminations)
 Une partie = une succession de **manches**. À chaque manche, les trois tireurs
 (vous + deux IA) frappent leur ballon vers la cage posée sur le toit d'en face.
 
+**Huit nations jouables** (le trio de la pub — Allemagne, Italie, Espagne —
+plus France, Brésil, Angleterre, Argentine et Portugal, chacune avec drapeau,
+maillot, coiffure et couleur de comète). Vous êtes toujours **au centre du
+trio**, caméra exactement derrière vous ; vos deux adversaires sont **tirés au
+sort** parmi les autres nations à chaque partie.
+
 - **But marqué** : +1 point.
 - **Tir raté** (dans le vide, sur la façade, à côté de la cage) : une planche de
   votre plateforme se brise.
@@ -73,10 +79,10 @@ Une partie = une succession de **manches**. À chaque manche, les trois tireurs
 
 | Manche | Distance du but | Vent |
 |---|---|---|
-| 1–2 | proche (~30 m) | aucun |
-| 3–4 | moyenne (~38 m) | léger |
-| 5–6 | lointaine (~46 m) | modéré |
-| 7–8+ | très lointaine (~54 m) | fort, variable |
+| 1 | proche (~30 m) | aucun |
+| 2–3 | moyenne (~34–38 m) | léger |
+| 4–5 | lointaine (~42–46 m) | modéré |
+| 6–8+ | très lointaine (~50–58 m) | fort, variable |
 
 - Le **vent** est latéral, affiché dans le HUD (direction + force), tiré au sort à
   chaque manche. Il dévie le ballon en vol mais n'apparaît pas dans la prévisualisation.
@@ -89,9 +95,11 @@ Une partie = une succession de **manches**. À chaque manche, les trois tireurs
   permette de régler son taux de réussite indépendamment de la distance
   (une erreur sur la *puissance* donnerait des mètres d'écart, cf. simulation).
 - L'IA compense partiellement le vent (elle « lit » 55–95 % de sa force).
-- Sa précision **s'améliore au fil des manches** : ~70 % de réussite en manche 1,
-  ~94 % en manche 8 (≈ 1,5 raté par IA et par partie) — la fin de partie met la
-  pression. Réglages validés par simulation numérique (4 000 tirs par manche).
+- Sa précision **s'améliore au fil des manches** : ~76 % de réussite en manche 1,
+  ~95 % en manche 8 — la fin de partie met la pression. Réglages validés par
+  simulation numérique (4 000 tirs par manche), durcis après les retours de
+  jeu (« trop facile ») : vent dès la manche 2, aide à la visée resserrée
+  (~30 cm), IA plus fine.
 - Les trois tirs partent quasi simultanément (léger décalage aléatoire), comme
   dans la pub : trois comètes traversent le vide en même temps.
 
@@ -130,8 +138,21 @@ Une partie = une succession de **manches**. À chaque manche, les trois tireurs
   score cumulée à la fin.
 - Les planches et l'élimination sont propres au Duel — au Parcours, la
   sanction, c'est le coup de pénalité.
-- v0 : solo contre le par. Ensuite : rivaux IA trou par trou, choix du club
-  (cloche haute / tir tendu), toits spéciaux (héliports bonus, toits pentus).
+
+### Les rivales
+
+- **Les deux autres nations jouent le parcours en même temps que vous**,
+  chacune son ballon et sa comète, à leur propre rythme : le jeu n'attend
+  jamais le joueur.
+- Elles visent la prochaine plateforme (ou la cage à portée) avec une
+  dispersion gaussienne, lisent 60–90 % du vent, subissent les mêmes
+  pénalités et le même plafond par+5.
+- Si vous terminez le trou avant elles, leurs derniers coups sont **résolus
+  en accéléré** (même solveur, même dispersion, sans animation) et annoncés.
+- Classement au **total de coups sur les 3 trous** ; le HUD affiche le cumul
+  de chaque nation en direct. Victoire si vous êtes strictement en tête.
+- Ensuite : choix du club (cloche haute / tir tendu), toits spéciaux
+  (héliports bonus, toits pentus).
 
 ### Générations des parcours
 

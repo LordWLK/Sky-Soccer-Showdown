@@ -26,22 +26,58 @@ export function drawFlagBadge(nationId, size = 128) {
   g.beginPath();
   g.arc(r, r, r * 0.92, 0, Math.PI * 2);
   g.clip();
+  const hBands = (cols, weights = cols.map(() => 1)) => {
+    const total = weights.reduce((a, b) => a + b, 0);
+    let y = 0;
+    cols.forEach((col, i) => {
+      const h = (size * weights[i]) / total;
+      g.fillStyle = col;
+      g.fillRect(0, y, size, h + 1);
+      y += h;
+    });
+  };
+  const vBands = (cols, weights = cols.map(() => 1)) => {
+    const total = weights.reduce((a, b) => a + b, 0);
+    let x = 0;
+    cols.forEach((col, i) => {
+      const w = (size * weights[i]) / total;
+      g.fillStyle = col;
+      g.fillRect(x, 0, w + 1, size);
+      x += w;
+    });
+  };
   if (nationId === 'de') {
-    const bands = ['#2b2b2b', '#dd0000', '#ffce00'];
-    bands.forEach((col, i) => {
-      g.fillStyle = col;
-      g.fillRect(0, (size / 3) * i, size, size / 3 + 1);
-    });
+    hBands(['#2b2b2b', '#dd0000', '#ffce00']);
   } else if (nationId === 'it') {
-    const bands = ['#009246', '#f4f4f4', '#ce2b37'];
-    bands.forEach((col, i) => {
-      g.fillStyle = col;
-      g.fillRect((size / 3) * i, 0, size / 3 + 1, size);
-    });
-  } else { // es
-    g.fillStyle = '#aa151b'; g.fillRect(0, 0, size, size);
-    g.fillStyle = '#f1bf00'; g.fillRect(0, size * 0.25, size, size * 0.5);
-    g.fillStyle = '#aa151b'; g.fillRect(0, size * 0.75, size, size * 0.25);
+    vBands(['#009246', '#f4f4f4', '#ce2b37']);
+  } else if (nationId === 'es') {
+    hBands(['#aa151b', '#f1bf00', '#aa151b'], [1, 2, 1]);
+  } else if (nationId === 'fr') {
+    vBands(['#0055a4', '#f4f4f4', '#ef4135']);
+  } else if (nationId === 'br') {
+    g.fillStyle = '#009c3b'; g.fillRect(0, 0, size, size);
+    g.fillStyle = '#ffdf00';
+    g.beginPath();
+    g.moveTo(size / 2, size * 0.13); g.lineTo(size * 0.9, size / 2);
+    g.lineTo(size / 2, size * 0.87); g.lineTo(size * 0.1, size / 2);
+    g.closePath(); g.fill();
+    g.fillStyle = '#002776';
+    g.beginPath(); g.arc(size / 2, size / 2, size * 0.17, 0, Math.PI * 2); g.fill();
+  } else if (nationId === 'en') {
+    g.fillStyle = '#f4f4f4'; g.fillRect(0, 0, size, size);
+    g.fillStyle = '#ce1124';
+    g.fillRect(size * 0.42, 0, size * 0.16, size);
+    g.fillRect(0, size * 0.42, size, size * 0.16);
+  } else if (nationId === 'ar') {
+    hBands(['#74acdf', '#f4f4f4', '#74acdf']);
+    g.fillStyle = '#f6b40e';
+    g.beginPath(); g.arc(size / 2, size / 2, size * 0.09, 0, Math.PI * 2); g.fill();
+  } else { // pt
+    vBands(['#046a38', '#da291c'], [2, 3]);
+    g.fillStyle = '#ffe900';
+    g.beginPath(); g.arc(size * 0.4, size / 2, size * 0.12, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#da291c';
+    g.beginPath(); g.arc(size * 0.4, size / 2, size * 0.06, 0, Math.PI * 2); g.fill();
   }
   // reflet doux en haut, ombre en bas : effet badge bombé
   const grad = g.createLinearGradient(0, 0, 0, size);

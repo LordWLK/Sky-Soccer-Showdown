@@ -72,19 +72,20 @@ h1 {
 }
 
 .team {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
   background: rgba(255, 255, 255, 0.1);
   border: 2px solid rgba(255, 255, 255, 0.25);
-  border-radius: 14px;
+  border-radius: 12px;
   color: #fff;
-  padding: 12px 14px 9px;
+  padding: 9px 10px 7px;
   cursor: pointer;
   font: inherit;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 12.5px;
+  min-width: 96px;
   transition: transform 0.12s, border-color 0.12s, background 0.12s;
 }
-.team img { width: 52px; height: 52px; }
+.team img { width: 42px; height: 42px; }
 .team em { font-style: normal; font-size: 11px; opacity: 0.7; }
 .team:hover { transform: translateY(-2px); }
 .team.selected {
@@ -307,3 +308,20 @@ h2.lose { color: #ff9d9d; }
 .end-name { flex: 1; text-align: left; }
 .end-status { font-size: 11px; opacity: 0.7; font-style: italic; }
 .end-score { font-size: 24px; font-weight: 900; min-width: 34px; text-align: right; }
+
+/* carte de score du Parcours : trois colonnes de nations */
+.golf-cell {
+  width: 52px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 18px;
+  display: flex; flex-direction: column; align-items: center;
+}
+.golf-cell.me-cell { color: #ffd75e; }
+.golf-cell em { font-style: normal; font-size: 11px; opacity: 0.75; }
+.golf-head img { width: 32px; height: 32px; }
+.end-row.golf-head { background: none; padding-top: 0; padding-bottom: 0; }
+.end-row.golf-total { border: 2px solid rgba(255, 215, 94, 0.6); font-size: 15px; }
+
+/* au golf, les puces n'ont pas de vies : cumul de coups uniquement */
+#hud.golf .pips { display: none; }
