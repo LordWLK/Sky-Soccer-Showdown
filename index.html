@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Sky Soccer Showdown</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.min.js" } }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- HUD en jeu -->
+  <div id="hud" class="hidden">
+    <div id="chips"></div>
+    <div id="round-box">
+      <div id="round">Manche 1 / 8</div>
+      <div id="wind">💨 vent nul</div>
+    </div>
+    <div id="hint" class="hidden"></div>
+  </div>
+
+  <!-- messages flottants (BUT !, Raté…) -->
+  <div id="msgs"></div>
+
+  <!-- écran titre -->
+  <div id="title-screen" class="screen">
+    <div class="panel">
+      <h1>SKY SOCCER<br>SHOWDOWN</h1>
+      <p class="tagline">Trois nations, un toit, un but de l'autre côté du vide.<br>
+        Le plus précis reste debout.</p>
+      <p class="pick-label">Choisissez votre équipe</p>
+      <div id="teams"></div>
+      <button id="play-btn">⚽&nbsp;&nbsp;JOUER</button>
+      <p class="rules">Glissez pour viser, relâchez pour tirer.<br>
+        Un tir raté brise une planche — trois planches brisées et c'est la chute !</p>
+    </div>
+  </div>
+
+  <!-- écran de fin -->
+  <div id="end-screen" class="screen hidden">
+    <div class="panel">
+      <h2 id="end-title">VICTOIRE !</h2>
+      <div id="end-rows"></div>
+      <button id="replay-btn">↻&nbsp;&nbsp;REJOUER</button>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
