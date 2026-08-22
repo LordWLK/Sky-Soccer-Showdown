@@ -5,6 +5,7 @@ import {
   concreteTexture, helipadTexture,
 } from './assets.js';
 import { buildFigure } from './players.js';
+import { mulberry32 } from './course.js';
 
 // registre des matériaux de façades : leurs fenêtres s'allument à la nuit
 const WALL_MATS = [];
@@ -339,34 +340,8 @@ function buildCity(city) {
 }
 
 // ============================================================== PARCOURS ==
-// Les trois trous du mode golf : plateformes en coordonnées absolues.
-// Le toit de départ (les tireurs) est commun à tous les trous.
-export const HOLES = [
-  {
-    name: 'Trou 1', par: 3,
-    platforms: [
-      { x: 6, z: -38, topY: -2, hw: 7, hd: 7, deco: 'concrete' },
-    ],
-    goal: { x: 2, z: -76, topY: -4, hw: 8, hd: 9 },
-  },
-  {
-    name: 'Trou 2', par: 4,
-    platforms: [
-      { x: -8, z: -40, topY: -3, hw: 6.5, hd: 6.5, deco: 'helipad' },
-      { x: 4, z: -78, topY: 1, hw: 6, hd: 6, deco: 'concrete' },
-    ],
-    goal: { x: 12, z: -116, topY: -2, hw: 7.5, hd: 9 },
-  },
-  {
-    name: 'Trou 3', par: 5,
-    platforms: [
-      { x: 8, z: -42, topY: -2, hw: 6, hd: 6, deco: 'concrete' },
-      { x: -6, z: -80, topY: -5, hw: 5.5, hd: 5.5, deco: 'helipad' },
-      { x: -14, z: -118, topY: 0, hw: 5, hd: 5, deco: 'concrete' },
-    ],
-    goal: { x: -6, z: -156, topY: -3, hw: 8, hd: 9 },
-  },
-];
+// La génération des trous vit dans src/course.js (module sans dépendance,
+// testable sous Node) ; ici on ne garde que la construction 3D.
 
 // Construit un trou : tours support, décors de toits, cage sur le toit final.
 // Retourne les plateformes (pour la physique) et les infos de la cage.
@@ -446,12 +421,3 @@ export function buildCourse(scene, hole) {
   };
 }
 
-function mulberry32(seed) {
-  let a = seed;
-  return function () {
-    a |= 0; a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}

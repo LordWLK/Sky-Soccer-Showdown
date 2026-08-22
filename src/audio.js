@@ -1,12 +1,14 @@
 // Sons synthétisés en WebAudio : aucun fichier audio.
 let ctx = null;
 let master = null;
+let volume = 1;     // réglage utilisateur (0 à 1), appliqué au gain maître
+let haptics = true; // réglage utilisateur : vibrations autorisées ou non
 
 function ensure() {
   if (!ctx) {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
     master = ctx.createGain();
-    master.gain.value = 0.4;
+    master.gain.value = 0.4 * volume;
     master.connect(ctx.destination);
   }
   if (ctx.state === 'suspended') ctx.resume();
@@ -30,6 +32,7 @@ function tone({ type = 'sine', from = 440, to = from, dur = 0.2, vol = 0.5, dela
 
 // retour haptique sur mobile (silencieusement ignoré ailleurs)
 function vibrate(pattern) {
+  if (!haptics) return;
   try { if (navigator.vibrate) navigator.vibrate(pattern); } catch { /* non supporté */ }
 }
 
@@ -74,6 +77,12 @@ function noise({ dur = 0.15, vol = 0.4, freq = 1200, delay = 0 }) {
 
 export const audio = {
   unlock() { ensure(); },
+  // réglages utilisateur, persistés par l'appelant
+  setVolume(v) {
+    volume = Math.max(0, Math.min(1, v));
+    if (master) master.gain.value = 0.4 * volume;
+  },
+  setHaptics(on) { haptics = !!on; },
   click() { tone({ type: 'triangle', from: 660, to: 520, dur: 0.07, vol: 0.25 }); },
   whistle() {
     tone({ type: 'square', from: 2200, to: 2200, dur: 0.09, vol: 0.12 });

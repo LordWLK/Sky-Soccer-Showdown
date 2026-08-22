@@ -1,6 +1,6 @@
 // Service worker : réseau d'abord (les mises à jour arrivent dès qu'on est en
 // ligne), cache en secours (le jeu reste jouable hors-ligne).
-const CACHE = 'sky-soccer-v1';
+const CACHE = 'sky-soccer-v2';
 const CORE = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const CORE = [
   './vendor/three.module.min.js',
   './src/main.js',
   './src/game.js',
+  './src/course.js',
   './src/world.js',
   './src/players.js',
   './src/ui.js',
@@ -19,6 +20,7 @@ const CORE = [
   './src/records.js',
   './icon-192.png',
   './icon-512.png',
+  './logo.webp',
 ];
 
 self.addEventListener('install', (e) => {

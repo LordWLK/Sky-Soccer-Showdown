@@ -40,6 +40,7 @@
       <button class="clubb selected" data-club="tendu">🎯 Tendu</button>
       <button class="clubb" data-club="cloche">🌙 Cloche</button>
     </div>
+    <button id="pause-btn" aria-label="Pause">⏸</button>
   </div>
 
   <!-- messages flottants (BUT !, Raté…) -->
@@ -48,6 +49,7 @@
   <!-- écran titre -->
   <div id="title-screen" class="screen">
     <div class="panel">
+      <button id="settings-btn" aria-label="Réglages">⚙️</button>
       <img id="logo" src="logo.webp" alt="Sky Soccer Showdown">
       <p class="tagline">Trois nations, un toit, un but de l'autre côté du vide.<br>
         Le plus précis reste debout.</p>
@@ -59,7 +61,10 @@
       <div id="modes">
         <button class="mode selected" data-mode="duel">⚔️ <b>Duel</b><span>8 manches contre 2 rivaux — le plus précis reste debout</span></button>
         <button class="mode" data-mode="duel2">👥 <b>Duel à 2</b><span>2 joueurs sur cet écran + une IA — chacun son tir</span></button>
-        <button class="mode" data-mode="golf">⛳ <b>Parcours</b><span>3 trous de toit en toit contre 2 rivales</span></button>
+        <button class="mode" data-mode="tourney">🏆 <b>Tournoi</b><span>Quart, demie, finale : 3 duels de plus en plus relevés</span></button>
+        <button class="mode" data-mode="golf">⛳ <b>Parcours 3 trous</b><span>De toit en toit contre 2 rivales — parcours généré</span></button>
+        <button class="mode" data-mode="golf9">🏙️ <b>Parcours 9 trous</b><span>La grande traversée de la ville, nouvelle à chaque partie</span></button>
+        <button class="mode" data-mode="daily">📅 <b>Parcours du jour</b><span>3 trous identiques pour tous, un nouveau défi chaque jour</span></button>
       </div>
       <div id="diffs">
         <button class="diffb selected" data-diff="normal">Normal</button>
@@ -80,6 +85,41 @@
         <button id="replay-btn">↻&nbsp;&nbsp;REJOUER</button>
         <button id="share-btn">📤&nbsp;&nbsp;PARTAGER</button>
       </div>
+    </div>
+  </div>
+
+  <!-- pause en jeu / réglages depuis l'écran titre (même panneau) -->
+  <div id="pause-screen" class="screen hidden">
+    <div class="panel pause-panel">
+      <h2 id="pause-title">PAUSE</h2>
+      <div class="setting-row">
+        <label for="vol-range">🔊 Volume</label>
+        <input id="vol-range" type="range" min="0" max="100" step="5" value="90">
+      </div>
+      <div class="setting-row">
+        <label for="vib-check">📳 Vibrations</label>
+        <input id="vib-check" type="checkbox" checked>
+      </div>
+      <div class="end-actions">
+        <button id="resume-btn">▶&nbsp;&nbsp;REPRENDRE</button>
+        <button id="quit-btn">🚪&nbsp;&nbsp;QUITTER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- tutoriel au premier lancement -->
+  <div id="tuto-screen" class="screen hidden">
+    <div class="panel pause-panel">
+      <h2>COMMENT JOUER</h2>
+      <div class="tuto-row"><span class="tuto-ico">👆</span>
+        <p>Glissez vers le haut pour doser la puissance, sur les côtés pour orienter le tir.
+        Le repère ⚽ de la jauge indique la puissance parfaite pour la cage.</p></div>
+      <div class="tuto-row"><span class="tuto-ico">💨</span>
+        <p>Le vent pousse le ballon en plein vol : visez à côté pour compenser.</p></div>
+      <div class="tuto-row"><span class="tuto-ico">🪵</span>
+        <p>En Duel, un tir raté brise une planche — trois planches et c'est la chute.
+        Au Parcours, un ballon dans le vide coûte +1 coup.</p></div>
+      <button id="tuto-btn">⚽&nbsp;&nbsp;C'EST PARTI !</button>
     </div>
   </div>
 

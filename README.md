@@ -26,10 +26,21 @@ Fonctionne aussi hors-ligne.
 
 ## 🎮 Règles & contrôles
 
-- **Choisissez votre nation** (8 équipes), votre **défi** — ⚔️ Duel,
-  👥 Duel à 2 (deux joueurs sur le même écran + une IA) ou ⛳ Parcours
-  (3 trous de golf urbain contre deux rivales) — et votre **difficulté**
-  (Normal / 🔥 Difficile), puis **JOUER**.
+- **Choisissez votre nation** (8 équipes), votre **défi** et votre
+  **difficulté** (Normal / 🔥 Difficile), puis **JOUER**. Six défis :
+  - ⚔️ **Duel** — 8 manches contre 2 rivaux, le plus précis reste debout ;
+  - 👥 **Duel à 2** — deux joueurs sur le même écran + une IA ;
+  - 🏆 **Tournoi** — quart, demie, finale : 3 duels de 5 manches contre
+    6 nations distinctes, IA de plus en plus précise, gardien assuré en
+    finale ;
+  - ⛳ **Parcours 3 trous** / 🏙️ **Parcours 9 trous** — golf urbain généré
+    procéduralement, contre deux rivales ;
+  - 📅 **Parcours du jour** — 3 trous identiques pour le monde entier
+    (graine = date UTC, vent compris), un nouveau défi chaque jour, record
+    du jour et partage « battez-moi ».
+- Au premier lancement, un **tutoriel** de trois pictos explique l'essentiel ;
+  en jeu, **⏸ met en pause** (reprendre ou quitter) et **⚙️ sur l'écran
+  titre** règle volume et vibrations (persistés sur l'appareil).
 - **Glissez vers le bas** pour régler la puissance, **latéralement** pour la
   direction (une trajectoire en pointillés vous guide), **relâchez** pour tirer.
 - Chaque manche, les trois tireurs frappent : **but = +1 point**,
@@ -54,10 +65,12 @@ Fonctionne aussi hors-ligne.
 | `src/main.js` | bootstrap, boucle de rendu, entrées |
 | `src/world.js` | ciel, ville, toits, cage, lumière |
 | `src/players.js` | tireurs low-poly, planches, badges, animations |
-| `src/game.js` | machine à états, balistique, IA, score, caméra |
+| `src/game.js` | machine à états (Duel, Tournoi, Parcours), balistique, IA, score, caméra |
+| `src/course.js` | générateur procédural de parcours (graine, Parcours du jour) |
 | `src/fx.js` | traînées comète, débris, confettis |
-| `src/audio.js` | sons synthétisés (WebAudio) |
+| `src/audio.js` | sons synthétisés (WebAudio), volume/vibrations réglables |
 | `src/ui.js` | liaison DOM (HUD, écrans, messages) |
+| `src/records.js` | records locaux et préférences (localStorage) |
 | `src/assets.js` | textures générées en canvas (drapeaux, fenêtres…) |
 | `vendor/three.module.min.js` | Three.js r170 vendorisé |
 
@@ -66,6 +79,11 @@ simulation numérique — détails dans [GAME_DESIGN.md](GAME_DESIGN.md), §4.
 
 ## 🧭 Feuille de route
 
-- **v0 — prototype jouable** ✅ *(vous êtes ici)*
-- **v1 — polish** : tutoriel, équilibrage affiné, sons enrichis, vrais modèles
-- **v2** : gardien mobile, cibles bonus, duel local à 2, déploiement GitHub Pages
+- **v0 — prototype jouable** ✅
+- **v1 — la grande passe** ✅ : lucarnes ×2, gardien, jour/nuit, clubs,
+  duel à 2, difficultés, records + partage, PWA, ralenti de but
+- **v2 — parcours infinis & tournoi** ✅ *(vous êtes ici)* : générateur
+  procédural, Parcours 9 trous, Parcours du jour, mode Tournoi, pause,
+  réglages, tutoriel
+- **v3 — idées** : obstacles entre les toits, toits spéciaux, duel en ligne,
+  classement mondial du Parcours du jour

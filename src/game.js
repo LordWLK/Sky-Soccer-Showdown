@@ -6,8 +6,9 @@ import { ballTexture } from './assets.js';
 import { ui } from './ui.js';
 import { audio } from './audio.js';
 import {
-  TARGET_ROOF_Y, GOAL_W, GOAL_H, TARGET_HALF_W, HOLES, buildCourse,
+  TARGET_ROOF_Y, GOAL_W, GOAL_H, TARGET_HALF_W, buildCourse,
 } from './world.js';
+import { generateCourse, dateSeed } from './course.js';
 
 const G = 18;                    // gravité arcade
 const ELEV = (40 * Math.PI) / 180; // élévation des tirs : frappe tendue
@@ -17,6 +18,10 @@ const POWER_MAX = 36;
 const DRAG_FULL = 0.62;          // fraction d'écran pour la puissance max
 const ROUNDS_MAX = 8;
 const ROUNDS_HARD_CAP = 14;      // au-delà : égalité
+// Tournoi : trois duels courts (5 manches) de plus en plus relevés
+const TOURNEY_STAGES = ['Quart de finale', 'Demi-finale', 'Finale'];
+const TOURNEY_SHORT = ['Quart', 'Demie', 'Finale'];
+const TOURNEY_AI = [1.05, 0.95, 0.85]; // dispersion des IA par tour (moins = mieux)
 const SHOOTER_X = [-5, 0, 5];
 
 // multiplicateurs de difficulté (choisis sur l'écran titre)
@@ -95,6 +100,10 @@ export function createGame({ scene, camera, world, fx }) {
     mode: 'duel',
     t: 0,
     round: 1,
+    roundsMax: ROUNDS_MAX,   // 5 manches par match en Tournoi
+    hardCap: ROUNDS_HARD_CAP,
+    distStep: 4,             // recul de la cage par manche (7 en Tournoi)
+    tournament: null,
     wind: 0,
     playerIdx: 0,
     golf: null,
@@ -116,7 +125,7 @@ export function createGame({ scene, camera, world, fx }) {
 
   // ------------------------------------------------------------ helpers ---
 
-  const distanceForRound = (r) => Math.min(58, 26 + (r - 1) * 4);
+  const distanceForRound = (r) => Math.min(58, 26 + (r - 1) * game.distStep);
   const playerShooter = () => game.shooters[game.playerIdx];
   const playerBall = () => game.balls[game.playerIdx];
   const diff = () => DIFFS[game.difficulty] || DIFFS.normal;
@@ -130,8 +139,10 @@ export function createGame({ scene, camera, world, fx }) {
 
   function rollWind() {
     if (game.round < 2) return 0;
-    // trajectoires plus tendues = vols plus courts : vent renforcé d'autant
-    const level = (game.round < 4 ? 0.7 : game.round < 6 ? 1.05 : 1.45) * diff().wind;
+    // trajectoires plus tendues = vols plus courts : vent renforcé d'autant ;
+    // gradué sur la longueur du match (compressé sur les 5 manches du Tournoi)
+    const prog = (game.round - 1) / Math.max(1, game.roundsMax - 1);
+    const level = (prog < 0.4 ? 0.7 : prog < 0.7 ? 1.05 : 1.45) * diff().wind;
     const mag = level * (0.4 + Math.random() * 0.6);
     return Math.round(mag * (Math.random() < 0.5 ? -1 : 1) * 10) / 10;
   }
@@ -194,9 +205,19 @@ export function createGame({ scene, camera, world, fx }) {
     ui.buildChips(game.roster, 1);
   }
 
+  // paramètres du match courant ; le Tournoi joue des matchs plus courts
+  // où la cage recule plus vite (mêmes distances finales, moins de manches)
+  function setMatchFormat(roundsMax, distStep) {
+    game.roundsMax = roundsMax;
+    game.hardCap = roundsMax + 6;
+    game.distStep = distStep;
+  }
+
   function startMatch(teamIdx) {
     clearMatch();
+    game.tournament = null;
     game.mode = 'duel';
+    setMatchFormat(ROUNDS_MAX, 4);
     buildRoster(teamIdx);
     game.roster.forEach((nation, i) => {
       const s = new Shooter(scene, nation, SHOOTER_X[i], i === game.playerIdx);
@@ -214,7 +235,9 @@ export function createGame({ scene, camera, world, fx }) {
   // Duel local à 2 : J1 au centre, J2 à droite, une IA tirée au sort à gauche.
   function startMatch2(team1Idx, team2Idx) {
     clearMatch();
+    game.tournament = null;
     game.mode = 'duel';
+    setMatchFormat(ROUNDS_MAX, 4);
     let t2 = team2Idx;
     if (t2 === team1Idx) t2 = (team1Idx + 1) % NATIONS.length;
     const pool = NATIONS.filter((_, i) => i !== team1Idx && i !== t2);
@@ -243,16 +266,20 @@ export function createGame({ scene, camera, world, fx }) {
     game.t = 0;
     game.wind = rollWind();
     world.setDistance(distanceForRound(game.round), game.round === 1);
-    world.setDayNight(Math.min(1, (game.round - 1) / 7));
-    const keeperOn = game.round >= diff().keeperFrom;
+    world.setDayNight(Math.min(1, (game.round - 1) / Math.max(1, game.roundsMax - 1)));
+    // en finale de Tournoi, le gardien monte dès la manche 3 quoi qu'il arrive
+    const keeperFrom = game.tournament && game.tournament.stage === 2
+      ? Math.min(3, diff().keeperFrom) : diff().keeperFrom;
+    const keeperOn = game.round >= keeperFrom;
     world.setKeeper(keeperOn, (1.5 + game.round * 0.12) * diff().keeperSpeed);
     if (keeperOn && !game.keeperAnnounced) {
       game.keeperAnnounced = true;
       ui.flash('Un gardien monte sur le toit ! 🧤', 'small', 2.3);
     }
-    ui.setRound(game.round, ROUNDS_MAX, game.round > ROUNDS_MAX);
+    ui.setRound(game.round, game.roundsMax, game.round > game.roundsMax,
+      game.tournament ? TOURNEY_SHORT[game.tournament.stage] : null);
     ui.setWind(game.wind);
-    ui.flash(game.round > ROUNDS_MAX ? '⚡ Mort subite !' : `Manche ${game.round}`, 'round', 1.4);
+    ui.flash(game.round > game.roundsMax ? '⚡ Mort subite !' : `Manche ${game.round}`, 'round', 1.4);
     if (game.wind && !game.windAnnounced) {
       game.windAnnounced = true;
       ui.flash('Le vent se lève… compensez !', 'small', 2.2);
@@ -363,10 +390,12 @@ export function createGame({ scene, camera, world, fx }) {
   // L'IA exécute parfaitement mais vise un point dispersé autour de la cage :
   // sa dispersion (en mètres) se resserre au fil des manches.
   function aiVelocity(shooter) {
-    const prog = Math.min(1, (game.round - 1) / 7);
+    const prog = Math.min(1, (game.round - 1) / Math.max(1, game.roundsMax - 1));
     const start = shooter.ballStart(BALL_R);
-    const sigX = (0.95 - 0.35 * prog) * diff().aiSig;
-    const sigY = (0.72 - 0.28 * prog) * diff().aiSig;
+    // Tournoi : les adversaires gagnent en précision à chaque tour
+    const tf = game.tournament ? TOURNEY_AI[game.tournament.stage] : 1;
+    const sigX = (0.95 - 0.35 * prog) * diff().aiSig * tf;
+    const sigY = (0.72 - 0.28 * prog) * diff().aiSig * tf;
     const cy = TARGET_ROOF_Y + GOAL_H * 0.45;
     const sign = Math.random() < 0.5 ? -1 : 1;
     let tx;
@@ -676,7 +705,7 @@ export function createGame({ scene, camera, world, fx }) {
     if (!game.locals && bots.every((s) => !s.alive)) {
       return { done: true, title: '🏆 VICTOIRE !', cls: 'win', sound: 'win' };
     }
-    if (game.round >= ROUNDS_MAX) {
+    if (game.round >= game.roundsMax) {
       const top = Math.max(...alive.map((s) => s.score));
       const leaders = alive.filter((s) => s.score === top);
       if (leaders.length === 1) {
@@ -693,7 +722,7 @@ export function createGame({ scene, camera, world, fx }) {
       }
       // toujours ex æquo en tête : mort subite, mais pas indéfiniment —
       // le verdict d'une manche décisive est rendu AVANT le plafond
-      if (game.round >= ROUNDS_HARD_CAP) {
+      if (game.round >= game.hardCap) {
         return { done: true, title: 'ÉGALITÉ', cls: '', sound: 'lose' };
       }
       return { done: false };
@@ -701,12 +730,97 @@ export function createGame({ scene, camera, world, fx }) {
     return { done: false };
   }
 
+  // ============================================================= TOURNOI ===
+
+  function startTournament(teamIdx) {
+    clearMatch();
+    // six adversaires distincts tirés des sept nations restantes :
+    // deux par tour (quart, demie, finale)
+    const pool = NATIONS.map((_, i) => i).filter((i) => i !== teamIdx);
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    game.tournament = { teamIdx, stage: 0, foes: pool.slice(0, 6), pendingNext: false };
+    startTournamentMatch();
+  }
+
+  function startTournamentMatch() {
+    clearMatch();
+    game.mode = 'duel';
+    setMatchFormat(5, 7); // 5 manches, la cage recule vite : mêmes distances qu'en duel
+    const t = game.tournament;
+    t.pendingNext = false;
+    game.roster = [
+      NATIONS[t.foes[t.stage * 2]],
+      NATIONS[t.teamIdx],
+      NATIONS[t.foes[t.stage * 2 + 1]],
+    ];
+    game.playerIdx = 1;
+    ui.buildChips(game.roster, 1);
+    game.roster.forEach((nation, i) => {
+      const s = new Shooter(scene, nation, SHOOTER_X[i], i === game.playerIdx);
+      game.shooters.push(s);
+      game.balls.push(makeBall(s));
+    });
+    game.round = 1;
+    game.hintShown = false;
+    game.windAnnounced = false;
+    ui.startMatch();
+    ui.updateChips(game.shooters);
+    ui.flash(`🏆 ${TOURNEY_STAGES[t.stage]} — face à ${game.roster[0].name} et ${game.roster[2].name}`,
+      'round', 2.4);
+    startRound();
+  }
+
+  // verdict du match replacé dans le contexte du tournoi ; appelé à l'écran
+  // de fin, il prépare aussi l'éventuel match suivant (bouton CONTINUER)
+  function tournamentVerdict(end) {
+    const t = game.tournament;
+    const won = end.cls === 'win'; // l'égalité au plafond élimine aussi
+    if (won && t.stage < 2) {
+      t.pendingNext = true;
+      const nf = [NATIONS[t.foes[(t.stage + 1) * 2]], NATIONS[t.foes[(t.stage + 1) * 2 + 1]]];
+      return {
+        title: t.stage === 0 ? '✅ QUART DE FINALE REMPORTÉ !' : '✅ DEMI-FINALE REMPORTÉE !',
+        cls: 'win',
+        result: { mode: 'tourney', won: true, next: { stage: TOURNEY_STAGES[t.stage + 1], foes: [nf[0].name, nf[1].name] } },
+      };
+    }
+    if (won) {
+      return {
+        title: '🏆 CHAMPION DU TOURNOI !',
+        cls: 'win',
+        result: { mode: 'tourney', won: true, champion: true },
+      };
+    }
+    return {
+      title: `💥 ÉLIMINATION EN ${TOURNEY_STAGES[t.stage].toUpperCase()}…`,
+      cls: 'lose',
+      result: { mode: 'tourney', won: false, eliminated: TOURNEY_STAGES[t.stage] },
+    };
+  }
+
+  function tournamentNext() {
+    const t = game.tournament;
+    if (!t || !t.pendingNext) return;
+    t.stage += 1;
+    startTournamentMatch();
+  }
+
   // ============================================================ PARCOURS ===
 
-  function startGolf(teamIdx) {
+  function startGolf(teamIdx, golfOpts = {}) {
     clearMatch();
+    game.tournament = null;
     game.mode = 'golf';
     world.setDuelTargetVisible(false);
+    // Parcours du jour : même graine (date UTC), même vent, même difficulté
+    // pour tout le monde — sinon graine aléatoire et 3 ou 9 trous au choix
+    const daily = !!golfOpts.daily;
+    const count = daily ? 3 : (golfOpts.count === 9 ? 9 : 3);
+    const seed = daily ? dateSeed() : ((Math.random() * 0x7fffffff) | 0);
+    if (daily) game.difficulty = 'normal';
     buildRoster(teamIdx);
     // les trois nations jouent le parcours ; pas de planches au golf
     game.roster.forEach((nation, i) => {
@@ -718,6 +832,10 @@ export function createGame({ scene, camera, world, fx }) {
     });
     game.golf = {
       hole: 0, scores: [], course: null, strokes: 0,
+      holes: generateCourse(seed, count),
+      daily,
+      date: new Date().toISOString().slice(0, 10),
+      kind: daily ? 'daily' : (count === 9 ? 'p9' : 'p3'),
       totals: [0, 0, 0],
       rivals: [0, 2].map((i) => ({
         i, rest: new THREE.Vector3(), groundY: 0,
@@ -738,16 +856,18 @@ export function createGame({ scene, camera, world, fx }) {
     }
     g.hole = i;
     g.strokes = 0;
-    g.spec = HOLES[i];
+    g.spec = g.holes[i];
     g.course = buildCourse(scene, g.spec);
     world.clearCorridor(g.course.boxes);
     g.rest = new THREE.Vector3(0, BALL_R, 1.5);
     g.groundY = 0;
     g.frozen = false;
     // la lumière tombe d'un cran à chaque trou
-    world.setDayNight(i / Math.max(1, HOLES.length - 1));
-    // vent fixe pour le trou, annoncé une fois pour tout le monde
-    g.wind = rollGolfWind();
+    world.setDayNight(i / Math.max(1, g.holes.length - 1));
+    // vent seedé avec le trou ; le Parcours du jour l'applique tel quel pour
+    // que tous les joueurs affrontent exactement les mêmes conditions
+    g.wind = g.daily ? g.spec.wind
+      : Math.round(g.spec.wind * diff().wind * 10) / 10;
     ui.setWind(g.wind);
     // les rivales démarrent de part et d'autre du joueur
     g.rivals.forEach((r, k) => {
@@ -768,15 +888,8 @@ export function createGame({ scene, camera, world, fx }) {
     golfChips();
     game.state = 'g_intro';
     game.t = 0;
-    ui.flash(`⛳ ${g.spec.name} / ${HOLES.length} — Par ${g.spec.par}`, 'round', 1.9);
+    ui.flash(`⛳ ${g.spec.name} / ${g.holes.length} — Par ${g.spec.par}`, 'round', 1.9);
     placeGolfShot();
-  }
-
-  function rollGolfWind() {
-    const level = ([0.5, 0.8, 1.15][game.golf.hole] || 1.15) * diff().wind;
-    if (Math.random() < 0.25) return 0;
-    const mag = level * (0.3 + Math.random() * 0.7);
-    return Math.round(mag * (Math.random() < 0.5 ? -1 : 1) * 10) / 10;
   }
 
   function headingTo(from) {
@@ -804,7 +917,7 @@ export function createGame({ scene, camera, world, fx }) {
     g.heading = Math.atan2(dx, -dz);
     g.distToGoal = Math.hypot(dx, dz);
     updateGolfGoalFrac();
-    ui.setGolfHud(g.spec, HOLES.length, g.strokes, g.distToGoal);
+    ui.setGolfHud(g.spec, g.holes.length, g.strokes, g.distToGoal);
     playerShooter().standAt(g.rest, g.groundY, g.heading);
     const b = playerBall();
     b.mesh.visible = true;
@@ -842,7 +955,7 @@ export function createGame({ scene, camera, world, fx }) {
     let vel = velocityFrom(game.aimPower, g.heading + game.aimYaw, clubTrig());
     vel = applyAssist(start, vel, gi, g.wind);
     g.strokes += 1;
-    ui.setGolfHud(g.spec, HOLES.length, g.strokes, g.distToGoal);
+    ui.setGolfHud(g.spec, g.holes.length, g.strokes, g.distToGoal);
     golfChips();
     const b = playerBall();
     b.pendingVel = vel;
@@ -1178,7 +1291,8 @@ export function createGame({ scene, camera, world, fx }) {
       verdict = { title: '💥 DÉFAITE…', cls: 'lose', sound: 'lose' };
     }
     audio[verdict.sound]();
-    ui.showGolfEnd(g.scores, totals, parTotal, game.playerIdx, verdict, game.roster);
+    ui.showGolfEnd(g.scores, totals, parTotal, game.playerIdx, verdict, game.roster,
+      { kind: g.kind, date: g.date });
     game.state = 'over';
     game.endInfo = null;
   }
@@ -1420,25 +1534,33 @@ export function createGame({ scene, camera, world, fx }) {
           finishHole();
         }
         if (game.holeDone && game.t > 3.9) {
-          if (game.golf.hole < HOLES.length - 1) startHole(game.golf.hole + 1);
+          if (game.golf.hole < game.golf.holes.length - 1) startHole(game.golf.hole + 1);
           else golfEnd();
         }
         break;
       case 'over':
         game.t += dt;
         if (game.t > 0.9 && game.endInfo) {
-          const { title, cls, sound } = game.endInfo;
+          const end = game.endInfo;
           game.endInfo = null;
-          audio[sound]();
+          audio[end.sound]();
           const meMap = game.locals
             ? { [game.locals[0]]: ' (J1)', [game.locals[1]]: ' (J2)' }
             : { [game.playerIdx]: ' (vous)' };
-          ui.showEnd(title, cls, game.shooters, meMap, {
+          let { title, cls } = end;
+          let result = {
             mode: game.locals ? 'duel2' : 'duel',
             playerScore: playerShooter().score,
             won: cls === 'win',
             nation: playerShooter().nation.name,
-          });
+          };
+          if (game.tournament) {
+            const tv = tournamentVerdict(end);
+            title = tv.title;
+            cls = tv.cls;
+            result = { ...tv.result, playerScore: playerShooter().score, nation: result.nation };
+          }
+          ui.showEnd(title, cls, game.shooters, meMap, result);
         }
         break;
       default:
@@ -1448,6 +1570,7 @@ export function createGame({ scene, camera, world, fx }) {
 
   function toTitle() {
     clearMatch();
+    game.tournament = null;
     hidePreview();
     game.aiming = false;
     game.state = 'title';
@@ -1455,7 +1578,8 @@ export function createGame({ scene, camera, world, fx }) {
 
   return {
     update, pointerDown, pointerMove, pointerUp, pointerCancel,
-    startMatch, startMatch2, startGolf, toTitle, setClub,
+    startMatch, startMatch2, startGolf, startTournament, tournamentNext, toTitle, setClub,
+    hasTournamentNext() { return !!(game.tournament && game.tournament.pendingNext); },
     setDifficulty(d) { game.difficulty = d === 'hard' ? 'hard' : 'normal'; },
     get state() { return game.state; },
     debug: game,

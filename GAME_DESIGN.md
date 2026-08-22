@@ -133,11 +133,15 @@ sort** parmi les autres nations à chaque partie.
 
 ### Structure
 
-- Une partie = **3 trous** (par 3, par 4, par 5), de plus en plus longs et
-  tortueux : décalages latéraux (doglegs), toits plus hauts ou plus bas
-  (monter coûte de la portée), toits plus petits en fin de parcours.
-- **Vent à chaque coup** dès le trou 1 (léger, puis sensible) : c'est l'âme
-  du mode.
+- Trois formats : **Parcours 3 trous**, **Parcours 9 trous** (la grande
+  traversée) et **Parcours du jour** (3 trous, mêmes pour tout le monde).
+- Trous de plus en plus longs et tortueux : décalages latéraux (doglegs),
+  toits plus hauts ou plus bas (monter coûte de la portée), toits plus
+  petits en fin de parcours ; mélange de pars 3/4/5 qui s'allonge vers la fin.
+- **Vent fixé par trou** dès le trou 1 (léger, puis sensible) : c'est l'âme
+  du mode. Il est tiré avec la graine du parcours — sur le Parcours du jour,
+  tout le monde affronte exactement les mêmes conditions (difficulté imposée
+  à Normal pour la même raison).
 - Appréciations golf à chaque trou (Eagle / Birdie / Par / Bogey…), carte de
   score cumulée à la fin.
 - Les planches et l'élimination sont propres au Duel — au Parcours, la
@@ -153,16 +157,33 @@ sort** parmi les autres nations à chaque partie.
   pénalités et le même plafond par+5.
 - Si vous terminez le trou avant elles, leurs derniers coups sont **résolus
   en accéléré** (même solveur, même dispersion, sans animation) et annoncés.
-- Classement au **total de coups sur les 3 trous** ; le HUD affiche le cumul
+- Classement au **total de coups du parcours** ; le HUD affiche le cumul
   de chaque nation en direct. Victoire si vous êtes strictement en tête.
-- Ensuite : choix du club (cloche haute / tir tendu), toits spéciaux
-  (héliports bonus, toits pentus).
 
-### Générations des parcours
+### Génération des parcours (`src/course.js`)
 
-- Parcours générés par graine (seed) : suite de toits espacés de 28 à 42 m,
-  dérive latérale progressive, variation de hauteur ±4 m, dimensions 8–16 m.
+- Générateur **entièrement déterministe** à partir d'une graine (PRNG
+  mulberry32) : sauts de 31 à 45 m (portée max ~60 m), montées plafonnées à
+  +3,5 m par saut (la cloche existe pour ça), demi-largeur des toits ≥ 4,6 m,
+  dérive latérale bornée au couloir de la ville, doglegs alternés à 70 %.
+- Difficulté croissante le long du parcours (toits plus petits, sauts plus
+  longs, vent plus fort) ; validé par échantillonnage massif (6 000 trous
+  générés : tous solvables avec les deux clubs, aucun chevauchement).
+- **Parcours du jour** : la graine est dérivée de la date UTC — le monde
+  entier joue le même tracé, un nouveau chaque jour.
 - Le toit final reprend la cage et le mini-terrain du Duel.
+
+## 4 ter. Mode « Tournoi »
+
+- Trois duels éliminatoires : **quart de finale → demi-finale → finale**,
+  face à **six nations distinctes** tirées au sort (deux par match).
+- Matchs raccourcis à **5 manches** (la cage recule de 7 m par manche : mêmes
+  distances finales qu'en Duel), mort subite puis élimination en cas
+  d'égalité persistante.
+- Les adversaires **gagnent en précision à chaque tour** ; en finale, le
+  gardien monte sur le toit dès la manche 3 quelle que soit la difficulté.
+- L'écran de fin d'étape annonce le prochain match (bouton **CONTINUER**) ;
+  le titre de champion s'ajoute aux records locaux.
 
 ## 5. Présentation
 
@@ -195,6 +216,11 @@ sort** parmi les autres nations à chaque partie.
   indicateur de vent, message d'aide à la première visée.
 - **Messages** : « BUT ! », « Raté… », « Manche N », éliminations.
 - **Écran de fin** : victoire/défaite, tableau des scores, bouton rejouer.
+- **Pause** (⏸ en jeu) : partie figée à l'image près, reprise ou abandon ;
+  le même panneau sert de **réglages** (⚙️ sur l'écran titre) — volume et
+  vibrations, persistés sur l'appareil.
+- **Tutoriel** au tout premier lancement : trois pictos (glisser = puissance
+  et direction, vent à compenser, planches / pénalités), puis « C'EST PARTI ».
 - Textes en **français** (localisation possible plus tard).
 
 ### 5.4 Audio
@@ -211,12 +237,14 @@ sort** parmi les autres nations à chaque partie.
   - `src/main.js` — bootstrap, boucle de rendu, entrées pointeur
   - `src/world.js` — ciel, ville, toits, cage, parcours du mode golf
   - `src/players.js` — tireurs articulés, planches, badges drapeaux, flèche
-  - `src/game.js` — machines à états (Duel et Parcours), balistique, IA, score
+  - `src/game.js` — machines à états (Duel, Tournoi, Parcours), balistique, IA, score
+  - `src/course.js` — générateur procédural de parcours (graine, Parcours du jour)
   - `src/fx.js` — traînées, confettis, débris
-  - `src/audio.js` — synthèse WebAudio
+  - `src/audio.js` — synthèse WebAudio (+ volume et vibrations réglables)
   - `src/ui.js` — liaison DOM (HUD, écrans)
+  - `src/records.js` — records locaux et préférences (localStorage)
   - `src/assets.js` — textures générées en canvas (drapeaux, fenêtres, visages…)
-  - `src/nations.js` — données des trois nations (couleurs, numéros, coiffures)
+  - `src/nations.js` — données des huit nations (couleurs, numéros, coiffures)
 - **Physique maison** : intégration semi-implicite (position/vitesse), aucune
   dépendance physique.
 
@@ -238,9 +266,20 @@ sort** parmi les autres nations à chaque partie.
     vibrations mobiles, cycle jour → nuit.
   - **Méta** : records locaux + partage de score, PWA installable et
     jouable hors-ligne (manifest + service worker + icônes).
-- **v2 — idées** : obstacles entre les toits (câbles, grues, drones),
-  9-trous complet, toits spéciaux (héliport bonus, pentes), tournoi,
-  duel à 2 en ligne.
+- **v2 — parcours infinis & tournoi** ✅ *(cette itération)* :
+  - **Générateur procédural de parcours** (`src/course.js`) : déterministe
+    par graine, difficulté croissante, validé sur 6 000 trous.
+  - **Parcours 9 trous** et **Parcours du jour** (graine = date UTC, même
+    tracé et même vent pour tous, difficulté imposée, record du jour et
+    partage « battez-moi »).
+  - **Tournoi** : quart → demie → finale contre 6 nations distinctes,
+    matchs de 5 manches, IA de plus en plus précise, gardien assuré en
+    finale, bouton CONTINUER entre les matchs, trophées comptabilisés.
+  - **Confort grand public** : pause en jeu (partie figée), réglages volume
+    / vibrations persistés, tutoriel au premier lancement.
+- **v3 — idées** : obstacles entre les toits (câbles, grues, drones),
+  toits spéciaux (héliport bonus, pentes), duel à 2 en ligne,
+  classement en ligne du Parcours du jour.
 
 ## 8. Référence visuelle — la publicité d'origine
 

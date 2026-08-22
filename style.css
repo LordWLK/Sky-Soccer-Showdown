@@ -492,3 +492,103 @@ h2.lose { color: #ff9d9d; }
 
 /* au golf, les puces n'ont pas de vies : cumul de coups uniquement */
 #hud.golf .pips { display: none; }
+
+/* --------------------------------------- pause, réglages, tutoriel ------ */
+#pause-btn {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 46px; height: 46px;
+  border-radius: 13px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: rgba(12, 22, 48, 0.72);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.panel { position: relative; }
+#settings-btn {
+  position: absolute;
+  top: 2px; right: 2px;
+  width: 46px; height: 46px;
+  border-radius: 13px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
+#settings-btn:hover, #pause-btn:hover { background: rgba(255, 255, 255, 0.22); }
+
+.pause-panel {
+  max-width: 430px;
+  background: rgba(10, 18, 40, 0.88);
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  padding: 24px 22px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+.pause-panel h2 {
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+  text-shadow: 0 3px 0 rgba(15, 30, 70, 0.9);
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 16px 6px;
+  font-weight: 800;
+  font-size: 16px;
+}
+.setting-row input[type="range"] {
+  flex: 1;
+  max-width: 210px;
+  accent-color: #ffd75e;
+}
+.setting-row input[type="checkbox"] {
+  width: 24px; height: 24px;
+  accent-color: #ffd75e;
+}
+
+#resume-btn, #quit-btn, #tuto-btn {
+  font: inherit;
+  font-weight: 900;
+  font-size: 17px;
+  letter-spacing: 2px;
+  border-radius: 999px;
+  padding: 13px 28px;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+#resume-btn, #tuto-btn {
+  color: #2b52d8;
+  background: #fff;
+  border: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), inset 0 -3px 0 rgba(0, 0, 0, 0.12);
+}
+#quit-btn {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+}
+#resume-btn:hover, #quit-btn:hover, #tuto-btn:hover { transform: scale(1.05); }
+.pause-panel .end-actions { margin-top: 20px; }
+
+.tuto-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  text-align: left;
+  margin: 15px 2px;
+}
+.tuto-ico { font-size: 27px; line-height: 1.15; }
+.tuto-row p { font-size: 14.5px; line-height: 1.45; font-weight: 600; opacity: 0.94; }
+#tuto-btn { margin-top: 16px; }

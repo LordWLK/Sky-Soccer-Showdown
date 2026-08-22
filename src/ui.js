@@ -1,7 +1,7 @@
 // Interface DOM par-dessus le canvas : écrans, HUD, messages.
 import { NATIONS } from './nations.js';
 import { flagBadgeDataURL } from './assets.js';
-import { recordDuel, recordGolf } from './records.js';
+import { recordDuel, recordGolf, recordTournament } from './records.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -47,6 +47,8 @@ export function initUI({ onPlay, onReplay, onSelectSound, onClub }) {
       $('#teams2').classList.toggle('hidden', !two);
       $('#teams2-label').classList.toggle('hidden', !two);
       $('#teams-label').textContent = two ? 'Équipe du joueur 1' : 'Choisissez votre équipe';
+      // le Parcours du jour est le même pour tous : difficulté imposée
+      $('#diffs').classList.toggle('hidden', selectedMode === 'daily');
       onSelectSound?.();
     });
   });
@@ -143,7 +145,7 @@ export const ui = {
   },
 
   // carte de score à trois colonnes : une par nation, joueur surligné
-  showGolfEnd(holes, totals, parTotal, playerIdx, verdict, nations) {
+  showGolfEnd(holes, totals, parTotal, playerIdx, verdict, nations, meta = {}) {
     const title = $('#end-title');
     title.textContent = verdict.title;
     title.className = verdict.cls;
@@ -177,20 +179,29 @@ export const ui = {
     )}`;
     box.appendChild(totalRow);
 
-    const rec = recordGolf(totals[playerIdx]);
+    const kind = meta.kind || 'p3';
+    const rec = recordGolf(totals[playerIdx], kind, meta.date);
+    const label = kind === 'daily' ? `Parcours du jour (${meta.date})`
+      : kind === 'p9' ? 'Meilleur parcours 9 trous' : 'Meilleur parcours 3 trous';
     const line = document.createElement('div');
     line.className = 'end-record';
-    line.textContent = `${rec.newBest ? '⭐ NOUVEAU RECORD ! ' : ''}Meilleur parcours : ${rec.best} coups (par ${parTotal})`;
+    line.textContent = `${rec.newBest ? '⭐ NOUVEAU RECORD ! ' : ''}${label} : ${rec.best} coups (par ${parTotal})`;
     box.appendChild(line);
-    this.shareText = `⛳ Sky Soccer Showdown — Parcours bouclé en ${totals[playerIdx]} coups`
-      + ` (${diffs[playerIdx]}) avec ${nations[playerIdx].name} ! ${location.href}`;
+    this.shareText = kind === 'daily'
+      ? `⛳ Sky Soccer Showdown — Parcours du jour ${meta.date} bouclé en `
+        + `${totals[playerIdx]} coups (${diffs[playerIdx]}) avec ${nations[playerIdx].name}. `
+        + `Battez-moi ! ${location.href}`
+      : `⛳ Sky Soccer Showdown — Parcours ${holes.length} trous bouclé en ${totals[playerIdx]} coups`
+        + ` (${diffs[playerIdx]}) avec ${nations[playerIdx].name} ! ${location.href}`;
 
+    $('#replay-btn').innerHTML = '↻&nbsp;&nbsp;REJOUER';
     this.hide('#hud');
     this.show('#end-screen');
   },
 
-  setRound(n, max, suddenDeath) {
-    $('#round').textContent = suddenDeath ? '⚡ Mort subite' : `Manche ${n} / ${max}`;
+  setRound(n, max, suddenDeath, prefix) {
+    $('#round').textContent = (prefix ? `🏆 ${prefix} · ` : '')
+      + (suddenDeath ? '⚡ Mort subite' : `Manche ${n} / ${max}`);
   },
 
   setWind(a) {
@@ -279,9 +290,29 @@ export const ui = {
       this.shareText = `⚽ Sky Soccer Showdown — ${result.won ? 'Victoire' : 'Duel'} :`
         + ` ${result.playerScore} but${result.playerScore > 1 ? 's' : ''} avec ${result.nation} !`
         + ` ${location.href}`;
+    } else if (result && result.mode === 'tourney') {
+      const line = document.createElement('div');
+      line.className = 'end-record';
+      if (result.next) {
+        // tournoi encore en cours : pas de record, on annonce le match suivant
+        line.textContent = `Prochain match — ${result.next.stage} : ${result.next.foes[0]} et ${result.next.foes[1]}`;
+        this.shareText = `⚽ Sky Soccer Showdown — En route vers la ${result.next.stage.toLowerCase()}`
+          + ` du tournoi avec ${result.nation} ! ${location.href}`;
+      } else {
+        const rec = recordTournament(!!result.champion);
+        line.textContent = `🏆 Tournois remportés : ${rec.wins} sur ${rec.runs}`;
+        this.shareText = result.champion
+          ? `🏆 Sky Soccer Showdown — Champion du tournoi avec ${result.nation} ! ${location.href}`
+          : `⚽ Sky Soccer Showdown — Tournoi : ${result.eliminated ? `élimination en ${result.eliminated.toLowerCase()}` : 'éliminé'}`
+            + ` avec ${result.nation}. ${location.href}`;
+      }
+      rows.appendChild(line);
     } else {
       this.shareText = `⚽ Sky Soccer Showdown — ${title} ${location.href}`;
     }
+    // au fil d'un tournoi, REJOUER devient CONTINUER (match suivant)
+    $('#replay-btn').innerHTML = result && result.next
+      ? '➜&nbsp;&nbsp;CONTINUER' : '↻&nbsp;&nbsp;REJOUER';
     this.hide('#hud');
     this.show('#end-screen');
   },
