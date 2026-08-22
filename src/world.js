@@ -347,6 +347,7 @@ function buildCity(city) {
 // Retourne les plateformes (pour la physique) et les infos de la cage.
 export function buildCourse(scene, hole) {
   const group = new THREE.Group();
+  const courseMats = []; // façades de CE trou, à retirer du registre jour/nuit
   const platforms = [
     // le toit de départ fait partie du jeu (un tir trop court y retombe)
     { x: 0, z: 8, topY: 0, hw: 15.5, hd: 11.5, isStart: true },
@@ -365,6 +366,7 @@ export function buildCourse(scene, hole) {
       new THREE.BoxGeometry(p.hw * 2, h, p.hd * 2),
       wallMaterial(tex),
     );
+    courseMats.push(tower.material);
     tower.position.set(p.x, p.topY - h / 2, p.z);
     group.add(tower);
     const rim = new THREE.Mesh(
@@ -414,9 +416,16 @@ export function buildCourse(scene, hole) {
         if (m.isMesh) {
           m.geometry.dispose();
           if (m.material.map) m.material.map.dispose();
+          if (m.material.emissiveMap) m.material.emissiveMap.dispose();
           m.material.dispose();
         }
       });
+      // sans quoi le registre grossit à chaque trou et l'animation nuit/jour
+      // continue d'écrire dans des matériaux libérés
+      for (const mat of courseMats) {
+        const i = WALL_MATS.indexOf(mat);
+        if (i !== -1) WALL_MATS.splice(i, 1);
+      }
     },
   };
 }

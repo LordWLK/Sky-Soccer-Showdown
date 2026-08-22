@@ -41,10 +41,13 @@ export function recordDuel(score, won) {
   };
 }
 
-// Parcours : meilleur total de coups (le plus bas), par format.
-// kind : 'p3' (3 trous), 'p9' (9 trous) ou 'daily' (Parcours du jour, comparé
-// uniquement aux autres tentatives du même jour). `date` : AAAA-MM-JJ (UTC).
-export function recordGolf(total, kind = 'p3', date = null) {
+// Parcours : meilleur résultat par format.
+// kind 'daily' (Parcours du jour) : total de coups brut, comparé uniquement
+// aux tentatives du même jour — tout le monde joue le même tracé.
+// kind 'p3'/'p9' : les parcours sont générés et leur par varie d'une partie
+// à l'autre — on compare donc l'ÉCART AU PAR (moins = mieux), seul chiffre
+// comparable entre deux tracés différents. `date` : AAAA-MM-JJ (UTC).
+export function recordGolf(total, kind = 'p3', date = null, parTotal = 0) {
   const r = load();
   if (kind === 'daily') {
     const prev = r.golfDaily && r.golfDaily.date === date ? r.golfDaily.total : null;
@@ -52,12 +55,16 @@ export function recordGolf(total, kind = 'p3', date = null) {
     save(r);
     return { newBest: prev != null && total < prev, best: r.golfDaily.total };
   }
-  const key = kind === 'p9' ? 'golfBest9' : 'golfBest3';
-  // migration : l'ancien record unique (v1, parcours à 3 trous) devient golfBest3
-  const prevBest = r[key] != null ? r[key] : (kind === 'p9' ? null : r.golfBest);
-  r[key] = prevBest == null ? total : Math.min(prevBest, total);
+  const key = kind === 'p9' ? 'golfDiff9' : 'golfDiff3';
+  const diff = total - parTotal;
+  let prev = r[key];
+  // migration : l'ancien record v1 (parcours fixe de par 12) devient un écart
+  if (prev == null && kind === 'p3' && typeof r.golfBest === 'number') {
+    prev = r.golfBest - 12;
+  }
+  r[key] = prev == null ? diff : Math.min(prev, diff);
   save(r);
-  return { newBest: prevBest != null && total < prevBest, best: r[key] };
+  return { newBest: prev != null && diff < prev, best: r[key] };
 }
 
 // Tournoi : nombre de trophées remportés

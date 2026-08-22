@@ -496,7 +496,9 @@ h2.lose { color: #ff9d9d; }
 /* --------------------------------------- pause, réglages, tutoriel ------ */
 #pause-btn {
   position: absolute;
-  top: 12px; right: 12px;
+  /* sous la rangée de badges : sur mobile, le coin haut-droit est occupé
+     par la puce de la nation de droite */
+  top: 70px; right: 10px;
   width: 46px; height: 46px;
   border-radius: 13px;
   border: 2px solid rgba(255, 255, 255, 0.35);
@@ -506,6 +508,9 @@ h2.lose { color: #ff9d9d; }
   line-height: 1;
   cursor: pointer;
   pointer-events: auto;
+}
+@media (min-width: 760px) {
+  #pause-btn { top: 12px; right: 12px; }
 }
 
 .panel { position: relative; }

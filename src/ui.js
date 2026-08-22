@@ -180,12 +180,18 @@ export const ui = {
     box.appendChild(totalRow);
 
     const kind = meta.kind || 'p3';
-    const rec = recordGolf(totals[playerIdx], kind, meta.date);
+    const rec = recordGolf(totals[playerIdx], kind, meta.date, parTotal);
     const label = kind === 'daily' ? `Parcours du jour (${meta.date})`
       : kind === 'p9' ? 'Meilleur parcours 9 trous' : 'Meilleur parcours 3 trous';
+    // hors « du jour », les parcours changent à chaque partie : le record est
+    // l'écart au par, seul chiffre comparable entre deux tracés
+    const scoreTxt = kind === 'daily' ? `${rec.best} coups (par ${parTotal})`
+      : rec.best === 0 ? 'au par'
+        : rec.best < 0 ? `${-rec.best} sous le par`
+          : `${rec.best} au-dessus du par`;
     const line = document.createElement('div');
     line.className = 'end-record';
-    line.textContent = `${rec.newBest ? '⭐ NOUVEAU RECORD ! ' : ''}${label} : ${rec.best} coups (par ${parTotal})`;
+    line.textContent = `${rec.newBest ? '⭐ NOUVEAU RECORD ! ' : ''}${label} : ${scoreTxt}`;
     box.appendChild(line);
     this.shareText = kind === 'daily'
       ? `⛳ Sky Soccer Showdown — Parcours du jour ${meta.date} bouclé en `

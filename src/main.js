@@ -26,8 +26,11 @@ const game = createGame({ scene, camera, world, fx });
 window.__game = game; // utilisés par les tests automatisés
 window.__world = world;
 
-// au tout premier lancement, un écran « comment jouer » précède la partie
+// au tout premier lancement, un écran « comment jouer » précède la partie ;
+// le drapeau de session évite de le remontrer à chaque partie quand le
+// stockage local est indisponible (données de site bloquées)
 let pendingPlay = null;
+let tutoSeenSession = false;
 
 initUI({
   onPlay: (teamIdx, mode, difficulty, team2Idx) => {
@@ -42,7 +45,7 @@ initUI({
       else if (mode === 'duel2') game.startMatch2(teamIdx, team2Idx);
       else game.startMatch(teamIdx);
     };
-    if (!loadPrefs().tutorialSeen) {
+    if (!tutoSeenSession && !loadPrefs().tutorialSeen) {
       pendingPlay = launch;
       ui.show('#tuto-screen');
       return;
@@ -161,6 +164,7 @@ $id('vib-check').addEventListener('change', (e) => {
 });
 $id('tuto-btn').addEventListener('click', () => {
   audio.click();
+  tutoSeenSession = true;
   savePrefs({ tutorialSeen: true });
   ui.hide('#tuto-screen');
   const p = pendingPlay;
