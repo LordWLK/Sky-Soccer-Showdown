@@ -223,8 +223,10 @@ sort** parmi les autres nations à chaque partie.
   maillot, chaussettes rayées, crampons avec bout renforcé, écusson au torse,
   numéro dans le dos. Célébration bras levés après un but.
 - **Palette** : tours bleu nuit constellées de fenêtres allumées, ciel crépusculaire
-  pastel, pelouses vert saturé — sur lesquels tranchent les traînées néon et la
-  grosse flèche rouge qui désigne votre tireur.
+  pastel, pelouses vert saturé — sur lesquels tranchent les traînées néon.
+  Votre tireur se repère à son maillot et à la puce HUD entourée « vous » ;
+  rien ne flotte au-dessus des têtes (la flèche cartoon et les médaillons
+  drapeaux des premières versions ont été retirés).
 - Lumière rasante et ombres portées longues (fin de journée).
 - Brume de profondeur pour asseoir l'échelle de la ville.
 
@@ -271,9 +273,8 @@ sort** parmi les autres nations à chaque partie.
   - `index.html` / `style.css` — page, HUD, écrans (DOM par-dessus le canvas)
   - `src/main.js` — bootstrap, boucle de rendu, entrées pointeur
   - `src/world.js` — ciel, ville, toits, cage, parcours du mode golf
-  - `src/players.js` — tireurs articulés, planches, flèche du joueur
-    (l'identification passe par les maillots et les badges du HUD — pas de
-    médaillon flottant au-dessus des têtes)
+  - `src/players.js` — tireurs articulés, planches (l'identification passe
+    par les maillots et les badges du HUD — rien au-dessus des têtes)
   - `src/game.js` — machines à états (Duel, Tournoi, Parcours), balistique, IA, score
   - `src/course.js` — générateur procédural de parcours (graine, Parcours du jour)
   - `src/obstacles.js` — câbles, drones, grues, colonnes d'air (3D + colliders)

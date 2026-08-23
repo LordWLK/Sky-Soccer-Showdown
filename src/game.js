@@ -311,8 +311,7 @@ export function createGame({ scene, camera, world, fx }) {
     game.activeLocal = 0;
     ui.buildChips(game.roster, { 1: 'J1', 2: 'J2' });
     game.roster.forEach((nation, i) => {
-      // pas de flèche « VOUS » à deux joueurs : les étiquettes J1/J2 suffisent
-      const s = new Shooter(scene, nation, SHOOTER_X[i], game.locals.includes(i), { arrow: false });
+      const s = new Shooter(scene, nation, SHOOTER_X[i], game.locals.includes(i));
       game.shooters.push(s);
       game.balls.push(makeBall(s));
     });
@@ -1671,12 +1670,10 @@ export function createGame({ scene, camera, world, fx }) {
       // un finaliste tombé remonte sur scène : la chute est annulée
       s.falling = null;
       s.group.visible = true;
-      // pas de pile de planches ni de flèche sur le podium — la figure est
-      // posée à pileTop() dans son repère local, on compense pour que les
-      // pieds touchent le sommet de la marche
+      // pas de pile de planches sur le podium — la figure est posée à
+      // pileTop() dans son repère local, on compense pour que les pieds
+      // touchent le sommet de la marche
       s.planksGroup.visible = false;
-      s.hideArrow = true;
-      if (s.arrow) s.arrow.visible = false;
       s.group.position.set(spot.x, spot.topY - s.pileTop(), spot.z);
       s.group.rotation.y = 0;
       s.figure.rotation.x = 0;
@@ -1856,11 +1853,6 @@ export function createGame({ scene, camera, world, fx }) {
     }
     const sdt = game.slowmo > 0 ? dt * 0.35 : dt;
     for (const s of game.shooters) s.update(sdt, t);
-    // en phase de visée, la flèche du tireur actif laisse la vue dégagée
-    if (game.shooters.length) {
-      const active = AIM_STATES.includes(game.state) ? aimShooter() : null;
-      for (const s of game.shooters) s.setAimFade(s === active);
-    }
     // le vent s'entend pendant la visée, proportionnel à sa force
     const windNow = game.mode === 'golf' && game.golf ? game.golf.wind : game.wind;
     audio.setWind(AIM_STATES.includes(game.state) ? windNow : 0);

@@ -1,5 +1,7 @@
 // Tireurs détaillés : capsules arrondies, membres articulés (genoux, coudes),
-// visage, coiffures, col, écusson — plus planches, badge drapeau et flèche.
+// visage, coiffures, col, écusson — plus les planches sous leurs pieds.
+// L'identification passe par les maillots et le HUD : rien ne flotte
+// au-dessus des têtes.
 import * as THREE from 'three';
 import {
   flagBadgeTexture, numberTexture, faceTexture,
@@ -49,12 +51,6 @@ export class Shooter {
     this.figure.position.y = this.figureY;
     this.group.add(this.figure);
 
-    if (isPlayer && opts.arrow !== false) {
-      this.arrow = buildArrow();
-      // sans le médaillon d'antan, la flèche descend au ras de la tête
-      this.arrow.position.set(0, 4.15, 0.5);
-      this.group.add(this.arrow);
-    }
   }
 
   pileTop() { return this.planks.length * PLANK_T; }
@@ -71,10 +67,6 @@ export class Shooter {
   }
 
   startKick() { this.kickT = 0; }
-
-  // pendant la visée, la flèche du joueur s'efface pour ne pas
-  // masquer la trajectoire et la cage
-  setAimFade(faded) { this.aimFaded = !!faded; }
 
   celebrate() {
     this.celebrateT = 0;
@@ -102,7 +94,6 @@ export class Shooter {
       this.planksGroup.remove(plank);
       fx.tumble(plank, world, new THREE.Vector3((Math.random() - 0.5) * 7, 3 + Math.random() * 4, (Math.random() - 0.5) * 6));
     }
-    if (this.arrow) this.arrow.visible = false;
     // bascule cartoon : assez d'élan pour passer le bord du toit avant de chuter
     this.falling = {
       vel: new THREE.Vector3((Math.random() - 0.5) * 2, 7, -14),
@@ -136,11 +127,6 @@ export class Shooter {
       }
     }
     this.figure.position.y = y;
-
-    if (this.arrow) {
-      this.arrow.visible = this.alive && !this.hideArrow && !this.aimFaded;
-      this.arrow.position.y = 4.15 + Math.sin(t * 3) * 0.22;
-    }
 
     this.animate(dt, t);
   }
@@ -384,14 +370,3 @@ function buildHair(nation, hairMat) {
   return grp;
 }
 
-function buildArrow() {
-  const red = new THREE.MeshLambertMaterial({ color: 0xe32222, emissive: 0x6b0a0a });
-  const grp = new THREE.Group();
-  const head = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.85, 4), red);
-  head.rotation.x = Math.PI; // pointe vers le bas
-  head.rotation.y = Math.PI / 4;
-  const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.8, 0.48), red);
-  shaft.position.y = 0.78;
-  grp.add(head, shaft);
-  return grp;
-}
