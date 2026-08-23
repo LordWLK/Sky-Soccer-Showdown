@@ -77,7 +77,7 @@ Fonctionne aussi hors-ligne.
 | `index.html` / `style.css` | page, HUD, écrans (DOM par-dessus le canvas) |
 | `src/main.js` | bootstrap, boucle de rendu, entrées |
 | `src/world.js` | ciel, ville, toits, cage, lumière |
-| `src/players.js` | tireurs low-poly, planches, badges, animations |
+| `src/players.js` | tireurs low-poly, planches, animations |
 | `src/game.js` | machine à états (Duel, Tournoi, Parcours), balistique, IA, score, caméra |
 | `src/course.js` | générateur procédural de parcours (graine, Parcours du jour) |
 | `src/obstacles.js` | câbles, drones, grues, colonnes d'air (visuels + colliders) |

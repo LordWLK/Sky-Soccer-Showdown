@@ -112,7 +112,7 @@ sort** parmi les autres nations à chaque partie.
 - Chaque tireur démarre sur une pile de **3 planches** (affichées dans son badge HUD).
 - Un raté = une planche qui éclate (débris projetés, secousse).
 - Troisième raté = le personnage bascule dans le vide en moulinant des bras
-  (chute cartoon, badge grisé). Aucun réalisme, uniquement du comique de situation.
+  (chute cartoon). Aucun réalisme, uniquement du comique de situation.
 
 ## 4 bis. Mode « Parcours » — le golf urbain
 
@@ -271,7 +271,9 @@ sort** parmi les autres nations à chaque partie.
   - `index.html` / `style.css` — page, HUD, écrans (DOM par-dessus le canvas)
   - `src/main.js` — bootstrap, boucle de rendu, entrées pointeur
   - `src/world.js` — ciel, ville, toits, cage, parcours du mode golf
-  - `src/players.js` — tireurs articulés, planches, badges drapeaux, flèche
+  - `src/players.js` — tireurs articulés, planches, flèche du joueur
+    (l'identification passe par les maillots et les badges du HUD — pas de
+    médaillon flottant au-dessus des têtes)
   - `src/game.js` — machines à états (Duel, Tournoi, Parcours), balistique, IA, score
   - `src/course.js` — générateur procédural de parcours (graine, Parcours du jour)
   - `src/obstacles.js` — câbles, drones, grues, colonnes d'air (3D + colliders)

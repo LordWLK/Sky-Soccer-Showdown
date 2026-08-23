@@ -49,17 +49,10 @@ export class Shooter {
     this.figure.position.y = this.figureY;
     this.group.add(this.figure);
 
-    // badge drapeau flottant
-    this.badge = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: flagBadgeTexture(nation.id), transparent: true, depthWrite: false,
-    }));
-    this.badge.scale.set(1.35, 1.35, 1);
-    this.badge.position.set(0, 3.75, 0);
-    this.group.add(this.badge);
-
     if (isPlayer && opts.arrow !== false) {
       this.arrow = buildArrow();
-      this.arrow.position.set(0, 5.3, 0.5);
+      // sans le médaillon d'antan, la flèche descend au ras de la tête
+      this.arrow.position.set(0, 4.15, 0.5);
       this.group.add(this.arrow);
     }
   }
@@ -79,9 +72,9 @@ export class Shooter {
 
   startKick() { this.kickT = 0; }
 
-  // pendant la visée, le badge (et la flèche) du joueur s'effacent
-  // pour ne pas masquer la trajectoire et la cage
-  setBadgeFaded(faded) { this.badgeFadeTarget = faded ? 0.1 : 1; }
+  // pendant la visée, la flèche du joueur s'efface pour ne pas
+  // masquer la trajectoire et la cage
+  setAimFade(faded) { this.aimFaded = !!faded; }
 
   celebrate() {
     this.celebrateT = 0;
@@ -109,8 +102,6 @@ export class Shooter {
       this.planksGroup.remove(plank);
       fx.tumble(plank, world, new THREE.Vector3((Math.random() - 0.5) * 7, 3 + Math.random() * 4, (Math.random() - 0.5) * 6));
     }
-    this.badge.material.color.set(0x555555);
-    this.badge.material.opacity = 0.6;
     if (this.arrow) this.arrow.visible = false;
     // bascule cartoon : assez d'élan pour passer le bord du toit avant de chuter
     this.falling = {
@@ -146,15 +137,9 @@ export class Shooter {
     }
     this.figure.position.y = y;
 
-    this.badge.position.y = 3.75 + Math.sin(t * 1.7 + this.homeX * 2) * 0.08;
-    if (this.alive) {
-      const target = this.badgeFadeTarget ?? 1;
-      const mat = this.badge.material;
-      mat.opacity += (target - mat.opacity) * Math.min(1, dt * 8);
-      if (this.arrow) this.arrow.visible = !this.hideArrow && mat.opacity > 0.5;
-    }
     if (this.arrow) {
-      this.arrow.position.y = 5.3 + Math.sin(t * 3) * 0.22;
+      this.arrow.visible = this.alive && !this.hideArrow && !this.aimFaded;
+      this.arrow.position.y = 4.15 + Math.sin(t * 3) * 0.22;
     }
 
     this.animate(dt, t);

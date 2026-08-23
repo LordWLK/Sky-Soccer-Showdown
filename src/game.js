@@ -1856,10 +1856,10 @@ export function createGame({ scene, camera, world, fx }) {
     }
     const sdt = game.slowmo > 0 ? dt * 0.35 : dt;
     for (const s of game.shooters) s.update(sdt, t);
-    // en phase de visée, le badge du tireur actif laisse la vue dégagée
+    // en phase de visée, la flèche du tireur actif laisse la vue dégagée
     if (game.shooters.length) {
       const active = AIM_STATES.includes(game.state) ? aimShooter() : null;
-      for (const s of game.shooters) s.setBadgeFaded(s === active);
+      for (const s of game.shooters) s.setAimFade(s === active);
     }
     // le vent s'entend pendant la visée, proportionnel à sa force
     const windNow = game.mode === 'golf' && game.golf ? game.golf.wind : game.wind;
