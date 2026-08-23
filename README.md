@@ -114,6 +114,11 @@ simulation numérique — détails dans [GAME_DESIGN.md](GAME_DESIGN.md), §4.
   ville étagée dans la brume, ballon cousu qui roule dans l'axe de sa
   trajectoire, **transitions iris** à l'ancienne entre les scènes (lancement,
   trou suivant, retour au menu), et **podium de champion en 3D** au bout du
-  Tournoi
+  Tournoi ; enfin des **personnages refondus** en héros d'arcade : vraie
+  silhouette (cou, buste en V, mains, mollets), gabarit et coiffure par
+  nation, frappe avec pivot du buste et follow-through, corps penché du côté
+  visé, regard qui suit le ballon, visages à humeurs, **célébration
+  signature par nation** (glissade, saut-pirouette, déhanché…), rivaux qui
+  réagissent, gardien qui s'échauffe, ombre de contact sous chaque joueur
 - **v4 — idées** : duel à 2 en ligne, classement mondial du Parcours du
   jour, replays de buts, nouveaux décors de ville

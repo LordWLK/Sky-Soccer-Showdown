@@ -194,7 +194,9 @@ export function createGame({ scene, camera, world, fx }) {
         if (m.isMesh || m.isSprite) {
           if (m.geometry) m.geometry.dispose();
           if (m.material) {
-            if (m.material.map) m.material.map.dispose();
+            // les textures partagées (visages à humeurs, trames tissu,
+            // ombre de contact) survivent d'un match à l'autre
+            if (m.material.map && !m.material.map.userData.shared) m.material.map.dispose();
             m.material.dispose();
           }
         }
@@ -887,10 +889,18 @@ export function createGame({ scene, camera, world, fx }) {
       if (!game.challenge) ui.updateChips(game.shooters); // pas de puces en Défi
       if (isHuman(b.shooter)) {
         bumpStats(pts === 2 ? { goals: 1, lucarnes: 1 } : { goals: 1 });
+        // vos buts agacent les rivaux : bras croisés, tête secouée
+        for (const s of game.shooters) {
+          if (s.alive && !isHuman(s) && Math.random() < 0.75) s.react('grumble');
+        }
       }
-    } else if (isHuman(b.shooter)) {
-      ui.flash(game.locals ? tr('Raté — {n}', { n: tr(b.shooter.nation.name) }) : tr('Raté…'), 'small', 1);
-      audio.miss();
+    } else {
+      // le tireur qui rate se prend la tête dans les mains
+      b.shooter.react('dismay');
+      if (isHuman(b.shooter)) {
+        ui.flash(game.locals ? tr('Raté — {n}', { n: tr(b.shooter.nation.name) }) : tr('Raté…'), 'small', 1);
+        audio.miss();
+      }
     }
   }
 
@@ -1670,6 +1680,14 @@ export function createGame({ scene, camera, world, fx }) {
       // un finaliste tombé remonte sur scène : la chute est annulée
       s.falling = null;
       s.group.visible = true;
+      s.blob.visible = true; // l'ombre de contact revient avec lui
+      // état d'animation remis à neutre, célébrations « sur place » imposées
+      s.podiumMode = true;
+      s.celebrateT = -1;
+      s.reactT = -1;
+      s.figure.position.z = 0;
+      s.lookTarget = null;
+      s.setMood(s === game.shooters[game.playerIdx] ? 'joy' : 'neutral', 30);
       // pas de pile de planches sur le podium — la figure est posée à
       // pileTop() dans son repère local, on compense pour que les pieds
       // touchent le sommet de la marche
@@ -1852,6 +1870,18 @@ export function createGame({ scene, camera, world, fx }) {
       }
     }
     const sdt = game.slowmo > 0 ? dt * 0.35 : dt;
+    // pose de visée (penché du côté visé) et regards : le tireur actif se
+    // concentre sur son ballon, tout le monde suit un ballon en vol des yeux
+    if (game.shooters.length) {
+      const active = AIM_STATES.includes(game.state) && game.aiming ? aimShooter() : null;
+      const flying = game.balls.find((b) => b.state === 'flying' && b.mesh.visible);
+      for (const s of game.shooters) {
+        s.setAimPose(s === active ? game.aimYaw : null);
+        if (flying) s.lookTarget = flying.mesh.position;
+        else if (s === active) s.lookTarget = game.balls[game.shooters.indexOf(s)]?.mesh.position || null;
+        else s.lookTarget = null;
+      }
+    }
     for (const s of game.shooters) s.update(sdt, t);
     // le vent s'entend pendant la visée, proportionnel à sa force
     const windNow = game.mode === 'golf' && game.golf ? game.golf.wind : game.wind;

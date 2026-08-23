@@ -308,47 +308,134 @@ export function softDotTexture() {
   return toTexture(c);
 }
 
-export function faceTexture() {
+// Visages à humeurs : mêmes yeux vivants, mais sourcils, paupières et bouche
+// racontent l'état du joueur. Textures PARTAGÉES par tous les tireurs
+// (userData.shared les protège du dispose de fin de match).
+const FACE_CACHE = new Map();
+export function faceTexture(mood = 'neutral') {
+  if (FACE_CACHE.has(mood)) return FACE_CACHE.get(mood);
   const s = 128;
   const c = makeCanvas(s, s);
   const g = c.getContext('2d');
   g.clearRect(0, 0, s, s);
-  // yeux : iris, pupille et reflet — le regard prend vie
+  // paramètres d'expression par humeur
+  const M = {
+    neutral: { browLift: 0, browTilt: 0, eyeH: 13, pupilY: 0, mouth: 'smile' },
+    focus: { browLift: 6, browTilt: 0.55, eyeH: 10, pupilY: 1, mouth: 'flat' },
+    joy: { browLift: -7, browTilt: -0.2, eyeH: 9, pupilY: -1, mouth: 'open' },
+    sad: { browLift: 2, browTilt: -0.6, eyeH: 11, pupilY: 3, mouth: 'frown' },
+    panic: { browLift: -12, browTilt: 0.15, eyeH: 16, pupilY: 0, mouth: 'gasp' },
+  }[mood] || {
+    browLift: 0, browTilt: 0, eyeH: 13, pupilY: 0, mouth: 'smile',
+  };
   for (const side of [-1, 1]) {
     const x = s / 2 + side * 20;
+    // œil : blanc, iris, pupille, reflet
     g.fillStyle = '#fff';
-    g.beginPath(); g.ellipse(x, 58, 11, 13, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(x, 58, 11, M.eyeH, 0, 0, Math.PI * 2); g.fill();
+    const iw = mood === 'panic' ? 5 : 6.5; // panique : iris réduit, blanc visible
     g.fillStyle = '#4a6a3a';
-    g.beginPath(); g.arc(x, 60, 6.5, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(x, 60 + M.pupilY, iw, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#1d1712';
-    g.beginPath(); g.arc(x, 60, 3.6, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(x, 60 + M.pupilY, iw * 0.55, 0, Math.PI * 2); g.fill();
     g.fillStyle = 'rgba(255,255,255,0.95)';
-    g.beginPath(); g.arc(x - 2.4, 56.5, 2, 0, Math.PI * 2); g.fill();
-    // paupière supérieure légère
+    g.beginPath(); g.arc(x - 2.4, 56.5 + M.pupilY * 0.6, 2, 0, Math.PI * 2); g.fill();
+    // joie : paupière inférieure remontée (yeux qui sourient)
+    if (mood === 'joy') {
+      g.strokeStyle = 'rgba(120,80,55,0.6)';
+      g.lineWidth = 3;
+      g.beginPath(); g.moveTo(x - 9, 66); g.quadraticCurveTo(x, 62, x + 9, 66); g.stroke();
+    }
     g.strokeStyle = 'rgba(120,80,55,0.5)';
     g.lineWidth = 2.5;
     g.beginPath(); g.moveTo(x - 10, 50); g.quadraticCurveTo(x, 46, x + 10, 50); g.stroke();
-    // sourcil
+    // sourcil : hauteur et inclinaison portent l'émotion
+    // (tilt > 0 = pointe vers le nez abaissée : colère/concentration)
+    const by = 40 + M.browLift;
+    const inner = by + side * 0 + M.browTilt * 6;
+    const outer = by - M.browTilt * 6;
     g.strokeStyle = 'rgba(40,28,18,0.85)';
     g.lineWidth = 5;
     g.lineCap = 'round';
     g.beginPath();
-    g.moveTo(x - 12, 40); g.quadraticCurveTo(x, 33, x + 12, 39);
+    if (side < 0) {
+      g.moveTo(x - 12, outer); g.quadraticCurveTo(x, by - 6, x + 12, inner);
+    } else {
+      g.moveTo(x - 12, inner); g.quadraticCurveTo(x, by - 6, x + 12, outer);
+    }
     g.stroke();
   }
   // nez discret
   g.strokeStyle = 'rgba(150,95,65,0.55)';
   g.lineWidth = 3;
   g.beginPath(); g.moveTo(s / 2, 66); g.quadraticCurveTo(s / 2 + 3, 76, s / 2 - 1, 80); g.stroke();
-  // sourire concentré + joues
-  g.strokeStyle = 'rgba(120,60,50,0.9)';
-  g.lineWidth = 5;
-  g.beginPath(); g.moveTo(s / 2 - 12, 90); g.quadraticCurveTo(s / 2, 99, s / 2 + 12, 90); g.stroke();
-  g.fillStyle = 'rgba(230,120,90,0.18)';
+  // bouche selon l'humeur
+  g.lineCap = 'round';
+  if (M.mouth === 'open') {
+    // grand cri de joie : bouche ouverte, langue
+    g.fillStyle = '#5e2420';
+    g.beginPath(); g.ellipse(s / 2, 93, 13, 11, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#c96a5e';
+    g.beginPath(); g.ellipse(s / 2, 99, 8, 4.5, 0, 0, Math.PI * 2); g.fill();
+  } else if (M.mouth === 'gasp') {
+    // panique : bouche béante ovale
+    g.fillStyle = '#5e2420';
+    g.beginPath(); g.ellipse(s / 2, 94, 9, 13, 0, 0, Math.PI * 2); g.fill();
+  } else if (M.mouth === 'frown') {
+    g.strokeStyle = 'rgba(120,60,50,0.9)';
+    g.lineWidth = 5;
+    g.beginPath(); g.moveTo(s / 2 - 11, 96); g.quadraticCurveTo(s / 2, 88, s / 2 + 11, 96); g.stroke();
+  } else if (M.mouth === 'flat') {
+    g.strokeStyle = 'rgba(120,60,50,0.9)';
+    g.lineWidth = 5;
+    g.beginPath(); g.moveTo(s / 2 - 8, 92); g.lineTo(s / 2 + 8, 92); g.stroke();
+  } else {
+    g.strokeStyle = 'rgba(120,60,50,0.9)';
+    g.lineWidth = 5;
+    g.beginPath(); g.moveTo(s / 2 - 12, 90); g.quadraticCurveTo(s / 2, 99, s / 2 + 12, 90); g.stroke();
+  }
+  // joues
+  g.fillStyle = mood === 'joy' ? 'rgba(230,120,90,0.3)' : 'rgba(230,120,90,0.18)';
   for (const side of [-1, 1]) {
     g.beginPath(); g.arc(s / 2 + side * 30, 80, 8, 0, Math.PI * 2); g.fill();
   }
-  return toTexture(c);
+  const tex = toTexture(c);
+  tex.userData.shared = true;
+  FACE_CACHE.set(mood, tex);
+  return tex;
+}
+
+// trame tissu du maillot : la couleur nation + un tissage discret et des
+// micro-plis — partagée par couleur, jamais disposée
+const CLOTH_CACHE = new Map();
+export function clothTexture(colorHex) {
+  if (CLOTH_CACHE.has(colorHex)) return CLOTH_CACHE.get(colorHex);
+  const s = 64;
+  const c = makeCanvas(s, s);
+  const g = c.getContext('2d');
+  g.fillStyle = `#${colorHex.toString(16).padStart(6, '0')}`;
+  g.fillRect(0, 0, s, s);
+  // tissage : fines lignes croisées à peine visibles
+  g.strokeStyle = 'rgba(0,0,0,0.05)';
+  g.lineWidth = 1;
+  for (let i = 0; i < s; i += 3) {
+    g.beginPath(); g.moveTo(i, 0); g.lineTo(i, s); g.stroke();
+  }
+  g.strokeStyle = 'rgba(255,255,255,0.045)';
+  for (let i = 1; i < s; i += 3) {
+    g.beginPath(); g.moveTo(0, i); g.lineTo(s, i); g.stroke();
+  }
+  // micro-plis diagonaux
+  g.strokeStyle = 'rgba(0,0,0,0.035)';
+  g.lineWidth = 2;
+  for (let i = 0; i < 5; i++) {
+    const x = (i * 17 + 5) % s;
+    g.beginPath(); g.moveTo(x, 0); g.quadraticCurveTo(x + 8, s / 2, x - 4, s); g.stroke();
+  }
+  const tex = toTexture(c, [2, 2]);
+  tex.userData.shared = true;
+  CLOTH_CACHE.set(colorHex, tex);
+  return tex;
 }
 
 export function concreteTexture() {

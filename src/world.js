@@ -250,6 +250,8 @@ export function buildWorld(scene) {
   const rimLight = new THREE.DirectionalLight(0x9db8ff, 0.4);
   rimLight.position.set(-40, 30, -80);
   scene.add(rimLight);
+  const RIM_BLUE = new THREE.Color(0x9db8ff);
+  const RIM_GOLD = new THREE.Color(0xffc27a);
 
   // étoiles — n'apparaissent qu'à la nuit tombée
   const starGeo = new THREE.BufferGeometry();
@@ -519,6 +521,10 @@ export function buildWorld(scene) {
           const p = Math.max(0, Math.sin(t * 0.35 + gl.phase));
           gl.mat.opacity = dusk * p ** 10 * 0.85;
         }
+        // au crépuscule, le contre-jour vire à l'or et dessine un liseré
+        // chaud sur les silhouettes des tireurs
+        rimLight.intensity = 0.4 + dusk * 0.55;
+        rimLight.color.lerpColors(RIM_BLUE, RIM_GOLD, dusk);
       }
       for (let i = 0; i < clouds.length; i++) {
         clouds[i].position.x += dt * (1.2 + i * 0.25);
@@ -580,15 +586,32 @@ export function buildWorld(scene) {
       // va-et-vient du gardien le long de sa ligne — plus un plongeon d'arrêt
       if (state.keeper.active) {
         state.keeper.phase += dt * state.keeper.speed;
+        const kj = keeper.userData;
         if (state.keeper.dive > 0) {
           state.keeper.dive = Math.max(0, state.keeper.dive - dt * 2.2);
           const d = Math.sin((1 - state.keeper.dive) * Math.PI);
           keeper.rotation.z = state.keeper.diveDir * d * 1.15;
           keeper.position.y = d * 0.55;
+          // bras tendus vers le ballon pendant le plongeon
+          kj.lSh.rotation.z = -2.3 * d - 0.06;
+          kj.rSh.rotation.z = 2.3 * d + 0.06;
         } else {
           keeper.position.x = Math.sin(state.keeper.phase) * (GOAL_W / 2 - 0.6);
           keeper.rotation.z = -Math.cos(state.keeper.phase) * 0.12;
-          keeper.position.y = 0;
+          // échauffement permanent : petits sauts sur place, genoux vifs,
+          // bras qui s'étirent et retombent — le gardien vit sa vie
+          const ph = state.keeper.phase;
+          const hop = Math.max(0, Math.sin(ph * 5.2));
+          keeper.position.y = hop * 0.09;
+          const stretch = Math.max(0, Math.sin(ph * 0.7)) ** 3;
+          kj.lSh.rotation.z = -0.25 - stretch * 2.2 - hop * 0.15;
+          kj.rSh.rotation.z = 0.25 + stretch * 2.2 + hop * 0.15;
+          kj.lEl.rotation.x = 0.5 - stretch * 0.3;
+          kj.rEl.rotation.x = 0.5 - stretch * 0.3;
+          kj.lKnee.rotation.x = -hop * 0.35;
+          kj.rKnee.rotation.x = -hop * 0.35;
+          kj.body.rotation.x = 0.12 - stretch * 0.1;
+          kj.neck.rotation.y = Math.sin(ph * 0.9) * 0.3;
         }
       }
     },

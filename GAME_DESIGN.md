@@ -222,6 +222,21 @@ sort** parmi les autres nations à chaque partie.
   (yeux, sourcils), coiffures propres à chaque joueur, cols et manches du
   maillot, chaussettes rayées, crampons avec bout renforcé, écusson au torse,
   numéro dans le dos. Célébration bras levés après un but.
+- **Personnages héros d'arcade** (v3) : silhouette repensée — cou, buste en V
+  (taille fine, épaules larges), bras biceps/avant-bras avec vraies mains,
+  jambes longues aux mollets galbés, ceinture, liserés de chaussettes,
+  crampons dessinés, brassard de capitaine sur votre tireur, trame tissu sur
+  le maillot ; **gabarit par nation** (grand sec, petit vif…) et cinq
+  coiffures (crew, banane, boucles, dreads, chignon). Le **geste de frappe**
+  est complet : armé, fouetté avec pivot du buste et balancier des bras,
+  follow-through tenu ; en visée le corps **se penche du côté visé** ; la
+  tête **suit le ballon des yeux** en vol. **Visages à humeurs** (concentré,
+  joie, dépit, panique) selon la situation ; **célébration signature par
+  nation** (glissade à genoux, saut-pirouette, doigt au ciel, déhanché,
+  toupie…) ; les rivaux **réagissent** à vos buts (bras croisés) et à leurs
+  ratés (mains sur la tête) ; le gardien **s'échauffe** sur sa ligne ; une
+  **ombre de contact** assoit chaque joueur sur son toit et le contre-jour
+  vire à l'or au crépuscule.
 - **Palette** : tours bleu nuit constellées de fenêtres allumées, ciel crépusculaire
   pastel, pelouses vert saturé — sur lesquels tranchent les traînées néon.
   Votre tireur se repère à son maillot et à la puce HUD entourée « vous » ;
