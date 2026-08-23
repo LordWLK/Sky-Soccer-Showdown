@@ -151,7 +151,7 @@ export class Shooter {
       const target = this.badgeFadeTarget ?? 1;
       const mat = this.badge.material;
       mat.opacity += (target - mat.opacity) * Math.min(1, dt * 8);
-      if (this.arrow) this.arrow.visible = mat.opacity > 0.5;
+      if (this.arrow) this.arrow.visible = !this.hideArrow && mat.opacity > 0.5;
     }
     if (this.arrow) {
       this.arrow.position.y = 5.3 + Math.sin(t * 3) * 0.22;

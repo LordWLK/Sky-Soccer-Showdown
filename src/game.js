@@ -1666,7 +1666,16 @@ export function createGame({ scene, camera, world, fx }) {
     order.forEach((idx, k) => {
       const s = game.shooters[idx];
       const spot = spots[k];
-      s.group.position.set(spot.x, spot.topY, spot.z);
+      // un finaliste tombé remonte sur scène : la chute est annulée
+      s.falling = null;
+      s.group.visible = true;
+      // pas de pile de planches ni de flèche sur le podium — la figure est
+      // posée à pileTop() dans son repère local, on compense pour que les
+      // pieds touchent le sommet de la marche
+      s.planksGroup.visible = false;
+      s.hideArrow = true;
+      if (s.arrow) s.arrow.visible = false;
+      s.group.position.set(spot.x, spot.topY - s.pileTop(), spot.z);
       s.group.rotation.y = 0;
       s.figure.rotation.x = 0;
     });
