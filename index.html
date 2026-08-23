@@ -38,10 +38,10 @@
       <div id="gauge-fill"></div>
     </div>
     <div id="club" class="hidden">
-      <button class="clubb selected" data-club="tendu" data-i18n>🎯 Tendu</button>
-      <button class="clubb" data-club="cloche" data-i18n>🌙 Cloche</button>
+      <button class="clubb selected" data-club="tendu" data-icon="tendu"><span data-i18n>Tendu</span></button>
+      <button class="clubb" data-club="cloche" data-icon="cloche"><span data-i18n>Cloche</span></button>
     </div>
-    <button id="pause-btn" aria-label="Pause">⏸</button>
+    <button id="pause-btn" aria-label="Pause" data-icon="pause"></button>
   </div>
 
   <!-- messages flottants (BUT !, Raté…) -->
@@ -50,8 +50,8 @@
   <!-- écran titre -->
   <div id="title-screen" class="screen">
     <div class="panel">
-      <button id="settings-btn" aria-label="Réglages">⚙️</button>
-      <button id="stats-btn" aria-label="Statistiques et succès">🏅</button>
+      <button id="settings-btn" aria-label="Réglages" data-icon="settings"></button>
+      <button id="stats-btn" aria-label="Statistiques et succès" data-icon="medal"></button>
       <img id="logo" src="logo.webp" alt="Sky Soccer Showdown">
       <p class="tagline" data-i18n>Trois nations, un toit, un but de l'autre côté du vide.<br>
         Le plus précis reste debout.</p>
@@ -61,19 +61,19 @@
       <div id="teams2" class="hidden"></div>
       <p class="pick-label" data-i18n>Choisissez votre défi</p>
       <div id="modes">
-        <button class="mode selected" data-mode="duel">⚔️ <b data-i18n>Duel</b><span data-i18n>8 manches contre 2 rivaux — le plus précis reste debout</span></button>
-        <button class="mode" data-mode="duel2">👥 <b data-i18n>Duel à 2</b><span data-i18n>2 joueurs sur cet écran + une IA — chacun son tir</span></button>
-        <button class="mode" data-mode="tourney">🏆 <b data-i18n>Tournoi</b><span data-i18n>Quart, demie, finale : 3 duels de plus en plus relevés</span></button>
-        <button class="mode" data-mode="golf">⛳ <b data-i18n>Parcours 3 trous</b><span data-i18n>De toit en toit contre 2 rivales — parcours généré</span></button>
-        <button class="mode" data-mode="golf9">🏙️ <b data-i18n>Parcours 9 trous</b><span data-i18n>La grande traversée de la ville, nouvelle à chaque partie</span></button>
-        <button class="mode" data-mode="daily">📅 <b data-i18n>Parcours du jour</b><span data-i18n>3 trous identiques pour tous, un nouveau défi chaque jour</span></button>
-        <button class="mode" data-mode="defis">🎯 <b data-i18n>Défis</b><span data-i18n>20 tirs d'exception à réussir en trois étoiles</span></button>
+        <button class="mode selected" data-mode="duel" data-icon="duel"><b data-i18n>Duel</b><span data-i18n>8 manches contre 2 rivaux — le plus précis reste debout</span></button>
+        <button class="mode" data-mode="duel2" data-icon="duel2"><b data-i18n>Duel à 2</b><span data-i18n>2 joueurs sur cet écran + une IA — chacun son tir</span></button>
+        <button class="mode" data-mode="tourney" data-icon="tourney"><b data-i18n>Tournoi</b><span data-i18n>Quart, demie, finale : 3 duels de plus en plus relevés</span></button>
+        <button class="mode" data-mode="golf" data-icon="golf"><b data-i18n>Parcours 3 trous</b><span data-i18n>De toit en toit contre 2 rivales — parcours généré</span></button>
+        <button class="mode" data-mode="golf9" data-icon="golf9"><b data-i18n>Parcours 9 trous</b><span data-i18n>La grande traversée de la ville, nouvelle à chaque partie</span></button>
+        <button class="mode" data-mode="daily" data-icon="daily"><b data-i18n>Parcours du jour</b><span data-i18n>3 trous identiques pour tous, un nouveau défi chaque jour</span></button>
+        <button class="mode" data-mode="defis" data-icon="defis"><b data-i18n>Défis</b><span data-i18n>20 tirs d'exception à réussir en trois étoiles</span></button>
       </div>
       <div id="diffs">
         <button class="diffb selected" data-diff="normal" data-i18n>Normal</button>
-        <button class="diffb" data-diff="hard" data-i18n>🔥 Difficile</button>
+        <button class="diffb" data-diff="hard" data-icon="fire"><span data-i18n>Difficile</span></button>
       </div>
-      <button id="play-btn" data-i18n>⚽&nbsp;&nbsp;JOUER</button>
+      <button id="play-btn" data-icon="ball"><span data-i18n>JOUER</span></button>
       <p class="rules" data-i18n>Glissez pour viser, relâchez pour tirer.<br>
         Un tir raté brise une planche — trois planches brisées et c'est la chute !</p>
     </div>
@@ -86,8 +86,8 @@
       <div id="end-rows"></div>
       <div class="end-actions">
         <button id="replay-btn">↻&nbsp;&nbsp;REJOUER</button>
-        <button id="share-btn" data-i18n>📤&nbsp;&nbsp;PARTAGER</button>
-        <button id="menu-btn" class="hidden" data-i18n>🏠&nbsp;&nbsp;MENU</button>
+        <button id="share-btn" data-icon="share"><span data-i18n>PARTAGER</span></button>
+        <button id="menu-btn" class="hidden" data-icon="home"><span data-i18n>MENU</span></button>
       </div>
     </div>
   </div>
@@ -160,7 +160,7 @@
       <div class="tuto-row"><span class="tuto-ico">🪵</span>
         <p data-i18n>En Duel, un tir raté brise une planche — trois planches et c'est la chute.
         Au Parcours, un ballon dans le vide coûte +1 coup.</p></div>
-      <button id="tuto-btn" data-i18n>⚽&nbsp;&nbsp;C'EST PARTI !</button>
+      <button id="tuto-btn" data-icon="ball"><span data-i18n>C'EST PARTI !</span></button>
     </div>
   </div>
 

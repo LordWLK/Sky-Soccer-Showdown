@@ -273,6 +273,7 @@ sort** parmi les autres nations à chaque partie.
   - `src/obstacles.js` — câbles, drones, grues, colonnes d'air (3D + colliders)
   - `src/challenges.js` — les 20 Défis (données pures)
   - `src/i18n.js` — localisation FR/EN (clés françaises, repli gracieux)
+  - `src/icons.js` — icônes SVG dessinées maison (identiques sur tous les appareils)
   - `src/fx.js` — traînées, confettis, débris
   - `src/audio.js` — synthèse WebAudio (+ volume et vibrations réglables)
   - `src/ui.js` — liaison DOM (HUD, écrans)

@@ -7,6 +7,7 @@ import { initUI, ui } from './ui.js';
 import { audio } from './audio.js';
 import { loadPrefs, savePrefs } from './records.js';
 import { setLang, getLang, applyStatic, t } from './i18n.js';
+import { decorateIcons } from './icons.js';
 
 // langue : préférence sauvegardée, sinon celle du navigateur
 {
@@ -146,6 +147,8 @@ $id('music-check').checked = prefs.music;
 
 // traduction des textes statiques (et re-traduction au changement de langue)
 applyStatic();
+// icônes SVG maison sur tous les éléments marqués data-icon
+decorateIcons();
 const syncLangButtons = () => {
   document.querySelectorAll('#lang-pick .langb').forEach((b) => {
     b.classList.toggle('selected', b.dataset.lang === getLang());

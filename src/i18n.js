@@ -28,8 +28,8 @@ const EN = {
   'Défis': 'Trick shots',
   '20 tirs d\'exception à réussir en trois étoiles': '20 exceptional shots to master for three stars',
   'Normal': 'Normal',
-  '🔥 Difficile': '🔥 Hard',
-  '⚽ JOUER': '⚽ PLAY',
+  'Difficile': 'Hard',
+  'JOUER': 'PLAY',
   'Glissez pour viser, relâchez pour tirer. Un tir raté brise une planche — trois planches brisées et c\'est la chute !':
     'Drag to aim, release to shoot. A missed shot breaks a plank — three broken planks and down you go!',
 
@@ -40,7 +40,7 @@ const EN = {
   'Le vent pousse le ballon en plein vol : visez à côté pour compenser.': 'Wind pushes the ball mid-flight: aim off-center to compensate.',
   'En Duel, un tir raté brise une planche — trois planches et c\'est la chute. Au Parcours, un ballon dans le vide coûte +1 coup.':
     'In Duel, a miss breaks a plank — three planks and you fall. On the course, a ball lost to the void costs +1 stroke.',
-  '⚽ C\'EST PARTI !': '⚽ LET\'S GO!',
+  'C\'EST PARTI !': 'LET\'S GO!',
 
   // --- pause & réglages
   'PAUSE': 'PAUSED',
@@ -60,8 +60,8 @@ const EN = {
   'Coups : {n} · but à {d} m': 'Strokes: {n} · goal {d} m away',
   'Glissez vers le bas pour viser, relâchez pour tirer': 'Drag down to aim, release to shoot',
   'Enchaînez les toits jusqu\'au but — le vide coûte +1 coup': 'Hop the rooftops to the goal — the void costs +1 stroke',
-  '🎯 Tendu': '🎯 Driven',
-  '🌙 Cloche': '🌙 Lofted',
+  'Tendu': 'Driven',
+  'Cloche': 'Lofted',
   'Objectif : LUCARNE': 'Goal: TOP CORNER',
   'Objectif : marquer': 'Goal: score',
   '· Tir {n} / {max}': '· Shot {n} / {max}',
@@ -131,8 +131,7 @@ const EN = {
   '↻ REJOUER': '↻ REPLAY',
   '➜ CONTINUER': '➜ CONTINUE',
   '➜ DÉFI SUIVANT': '➜ NEXT SHOT',
-  '📤 PARTAGER': '📤 SHARE',
-  '🏠 MENU': '🏠 MENU',
+  'PARTAGER': 'SHARE',
   'Total — Par {n}': 'Total — Par {n}',
   'par': 'par',
   '⭐ NOUVEAU RECORD ! ': '⭐ NEW RECORD! ',

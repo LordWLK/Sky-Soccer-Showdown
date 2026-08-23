@@ -83,6 +83,7 @@ Fonctionne aussi hors-ligne.
 | `src/obstacles.js` | câbles, drones, grues, colonnes d'air (visuels + colliders) |
 | `src/challenges.js` | les 20 Défis (données) |
 | `src/i18n.js` | localisation français / anglais |
+| `src/icons.js` | icônes SVG maison (cartes de mode, boutons) |
 | `src/fx.js` | traînées comète, débris, confettis |
 | `src/audio.js` | sons synthétisés (WebAudio), volume/vibrations réglables |
 | `src/ui.js` | liaison DOM (HUD, écrans, messages) |

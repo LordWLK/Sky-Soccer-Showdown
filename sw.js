@@ -13,6 +13,7 @@ const CORE = [
   './src/obstacles.js',
   './src/challenges.js',
   './src/i18n.js',
+  './src/icons.js',
   './src/world.js',
   './src/players.js',
   './src/ui.js',
