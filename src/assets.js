@@ -139,15 +139,38 @@ export function grassTexture() {
   const s = 256;
   const c = makeCanvas(s, s);
   const g = c.getContext('2d');
-  // bandes de tonte
+  // bandes de tonte : deux verts proches avec un dégradé doux par bande,
+  // bien moins « aplats » que des rectangles pleins
   for (let i = 0; i < 8; i++) {
-    g.fillStyle = i % 2 ? '#57b32a' : '#4da324';
-    g.fillRect(0, (s / 8) * i, s, s / 8 + 1);
+    const y = (s / 8) * i;
+    const grad = g.createLinearGradient(0, y, 0, y + s / 8);
+    if (i % 2) {
+      grad.addColorStop(0, '#5cb92e');
+      grad.addColorStop(1, '#52ad27');
+    } else {
+      grad.addColorStop(0, '#4da324');
+      grad.addColorStop(1, '#469a20');
+    }
+    g.fillStyle = grad;
+    g.fillRect(0, y, s, s / 8 + 1);
   }
-  // bruit léger
-  for (let i = 0; i < 900; i++) {
-    g.fillStyle = `rgba(${20 + Math.random() * 40},${100 + Math.random() * 80},20,0.12)`;
-    g.fillRect(Math.random() * s, Math.random() * s, 2, 2);
+  // brins et grain : petits traits orientés plutôt que des pixels carrés
+  for (let i = 0; i < 700; i++) {
+    const x = Math.random() * s;
+    const y = Math.random() * s;
+    g.strokeStyle = `rgba(${25 + Math.random() * 50},${105 + Math.random() * 85},25,${0.1 + Math.random() * 0.12})`;
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + (Math.random() - 0.5) * 2, y - 2 - Math.random() * 2);
+    g.stroke();
+  }
+  // quelques zones d'usure discrètes
+  for (let i = 0; i < 5; i++) {
+    g.fillStyle = 'rgba(150,130,60,0.05)';
+    g.beginPath();
+    g.ellipse(Math.random() * s, Math.random() * s, 14 + Math.random() * 18, 8 + Math.random() * 10, Math.random() * 3, 0, Math.PI * 2);
+    g.fill();
   }
   const tex = toTexture(c, [2, 2]);
   return tex;

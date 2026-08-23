@@ -25,6 +25,9 @@ const CORE = [
   './icon-192.png',
   './icon-512.png',
   './logo.webp',
+  './vendor/fonts/baloo-2-latin-600-normal.woff2',
+  './vendor/fonts/baloo-2-latin-700-normal.woff2',
+  './vendor/fonts/baloo-2-latin-800-normal.woff2',
 ];
 
 self.addEventListener('install', (e) => {
