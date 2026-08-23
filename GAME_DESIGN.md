@@ -138,6 +138,15 @@ sort** parmi les autres nations à chaque partie.
 - Trous de plus en plus longs et tortueux : décalages latéraux (doglegs),
   toits plus hauts ou plus bas (monter coûte de la portée), toits plus
   petits en fin de parcours ; mélange de pars 3/4/5 qui s'allonge vers la fin.
+- **Toits spéciaux** : héliport (s'arrêter sur le disque central rembourse
+  un coup, une fois par toit), bâche élastique (le ballon repart presque
+  sans perte — deux toits d'un seul coup) ; **colonnes d'air ascendant**
+  dans les grands vides (rattrapent un tir court) ; **câbles et drones**
+  sur les trous difficiles. Tout est seedé avec le trou : l'équité du
+  Parcours du jour est préservée.
+- **Série du jour** : jours consécutifs joués, calendrier dans le palmarès,
+  partage en grille d'émojis (🎯 trou en un, 🟪 eagle, 🟩 birdie, 🟨 par,
+  🟧 bogey, 🟥 au-delà) façon casse-tête quotidien.
 - **Vent fixé par trou** dès le trou 1 (léger, puis sensible) : c'est l'âme
   du mode. Il est tiré avec la graine du parcours — sur le Parcours du jour,
   tout le monde affronte exactement les mêmes conditions (difficulté imposée
@@ -185,6 +194,23 @@ sort** parmi les autres nations à chaque partie.
 - L'écran de fin d'étape annonce le prochain match (bouton **CONTINUER**) ;
   le titre de champion s'ajoute aux records locaux.
 
+## 4 quater. Mode « Défis » et systèmes transverses
+
+- **20 Défis étoilés** (`src/challenges.js`) : un seul tireur face à une
+  situation figée — distance, vent, gardien, lucarne imposée, câbles,
+  drones, grue, nuit. Étoiles = 4 − tirs utilisés ; grille de sélection
+  avec le total d'étoiles, enchaînement DÉFI SUIVANT après une réussite.
+- **Tir brossé** : la courbure du geste (écart perpendiculaire maximal du
+  tracé du doigt à sa corde) devient une accélération latérale constante
+  — intégrée exactement comme le vent, visible dans l'aperçu puisque
+  c'est le joueur qui la contrôle. L'IA brosse autour du gardien.
+- **Obstacles aériens en Duel** (manches tardives) : câble décalé de la
+  trajectoire nominale (jamais bloquant : dessus, dessous, ou brossé),
+  drone en patrouille, grue et sa charge suspendue.
+- **Statistiques & succès** : compteurs locaux (buts, lucarnes, birdies,
+  victoires parfaites…), 16 succès déclaratifs, toasts de déblocage,
+  écran 🏅 avec calendrier du Parcours du jour.
+
 ## 5. Présentation
 
 ### 5.1 Direction artistique
@@ -226,7 +252,12 @@ sort** parmi les autres nations à chaque partie.
 ### 5.4 Audio
 
 - Sons synthétisés en WebAudio (aucun asset externe) : impact de frappe,
-  carillon de but, bris de planche, chute.
+  carillon de but, bris de planche, chute, claquement de câble, bâche.
+- **Nappe musicale générative** : boucle d'accords lents (la m / Fa / Do /
+  Sol, arpèges feutrés + basse) planifiée par anticipation, coupable dans
+  les réglages.
+- **Localisation** : interface français / anglais (`src/i18n.js`, clés =
+  textes français, repli gracieux), langue auto-détectée puis persistée.
 
 ## 6. Architecture technique
 
@@ -239,6 +270,9 @@ sort** parmi les autres nations à chaque partie.
   - `src/players.js` — tireurs articulés, planches, badges drapeaux, flèche
   - `src/game.js` — machines à états (Duel, Tournoi, Parcours), balistique, IA, score
   - `src/course.js` — générateur procédural de parcours (graine, Parcours du jour)
+  - `src/obstacles.js` — câbles, drones, grues, colonnes d'air (3D + colliders)
+  - `src/challenges.js` — les 20 Défis (données pures)
+  - `src/i18n.js` — localisation FR/EN (clés françaises, repli gracieux)
   - `src/fx.js` — traînées, confettis, débris
   - `src/audio.js` — synthèse WebAudio (+ volume et vibrations réglables)
   - `src/ui.js` — liaison DOM (HUD, écrans)
@@ -277,9 +311,25 @@ sort** parmi les autres nations à chaque partie.
     finale, bouton CONTINUER entre les matchs, trophées comptabilisés.
   - **Confort grand public** : pause en jeu (partie figée), réglages volume
     / vibrations persistés, tutoriel au premier lancement.
-- **v3 — idées** : obstacles entre les toits (câbles, grues, drones),
-  toits spéciaux (héliport bonus, pentes), duel à 2 en ligne,
-  classement en ligne du Parcours du jour.
+- **v3 — l'arsenal** ✅ *(cette itération)* :
+  - **Tir brossé** (courbure du geste → effet Magnus constant, aperçu
+    courbé, IA qui brosse autour du gardien).
+  - **Obstacles aériens** : câbles balisés, drones en patrouille, grue —
+    aléatoires en Duel tardif, seedés au Parcours (équité du jour).
+  - **Toits spéciaux** : héliport bonus, bâche élastique, colonnes d'air.
+  - **Mode Défis** : 20 tirs d'exception étoilés avec grille de sélection.
+  - **Série du jour** + partage en grille d'émojis + calendrier.
+  - **Statistiques & 16 succès** (écran 🏅, toasts de déblocage).
+  - **Musique d'ambiance générative** et **version anglaise** complète.
+  - **Direction artistique +1** : rendu filmique ACES + vignette ; ciel
+    vivant (étoiles, lune, disque solaire au crépuscule, nuages teintés) ;
+    ville habillée (châteaux d'eau, antennes à feux clignotants, clims,
+    enseignes néon, trame de rues en contrebas, contre-jour bleuté) ;
+    projecteurs de stade sur les toits ; visages expressifs, célébrations
+    variées, plongeon du gardien ganté ; ballon à pentagones cousus ;
+    onde de choc lumineuse sur les buts.
+- **v4 — idées** : duel à 2 en ligne, classement mondial du Parcours du
+  jour, replays de buts, décors de ville alternatifs.
 
 ## 8. Référence visuelle — la publicité d'origine
 

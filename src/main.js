@@ -6,6 +6,13 @@ import { createGame } from './game.js';
 import { initUI, ui } from './ui.js';
 import { audio } from './audio.js';
 import { loadPrefs, savePrefs } from './records.js';
+import { setLang, getLang, applyStatic, t } from './i18n.js';
+
+// langue : préférence sauvegardée, sinon celle du navigateur
+{
+  const saved = loadPrefs().lang;
+  setLang(saved || ((navigator.language || 'fr').toLowerCase().startsWith('fr') ? 'fr' : 'en'));
+}
 
 const app = document.getElementById('app');
 
@@ -14,6 +21,9 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// rendu filmique : contrastes plus doux, hautes lumières mieux tenues
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.18;
 app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -25,6 +35,7 @@ const fx = createFx(scene);
 const game = createGame({ scene, camera, world, fx });
 window.__game = game; // utilisés par les tests automatisés
 window.__world = world;
+window.__ui = ui;
 
 // au tout premier lancement, un écran « comment jouer » précède la partie ;
 // le drapeau de session évite de le remontrer à chaque partie quand le
@@ -38,6 +49,14 @@ initUI({
     audio.click();
     const launch = () => {
       game.setDifficulty(difficulty);
+      if (mode === 'defis') {
+        // la grille de niveaux s'ouvre, le défi choisi lance la partie
+        ui.openDefis((idx) => {
+          audio.click();
+          game.startChallenge(teamIdx, idx);
+        });
+        return;
+      }
       if (mode === 'golf') game.startGolf(teamIdx);
       else if (mode === 'golf9') game.startGolf(teamIdx, { count: 9 });
       else if (mode === 'daily') game.startGolf(teamIdx, { daily: true });
@@ -62,6 +81,12 @@ initUI({
     if (game.hasTournamentNext()) {
       ui.hide('#end-screen');
       game.tournamentNext();
+      return;
+    }
+    // en Défi : DÉFI SUIVANT après une réussite, REJOUER le même sinon
+    if (game.hasChallengePending()) {
+      ui.hide('#end-screen');
+      game.challengeReplay();
       return;
     }
     game.toTitle();
@@ -112,16 +137,29 @@ canvas.addEventListener('pointercancel', (e) => {
 const prefs = loadPrefs();
 audio.setVolume(prefs.volume);
 audio.setHaptics(prefs.haptics);
+audio.setMusic(prefs.music);
 
 const $id = (s) => document.getElementById(s);
 $id('vol-range').value = Math.round(prefs.volume * 100);
 $id('vib-check').checked = prefs.haptics;
+$id('music-check').checked = prefs.music;
+
+// traduction des textes statiques (et re-traduction au changement de langue)
+applyStatic();
+const syncLangButtons = () => {
+  document.querySelectorAll('#lang-pick .langb').forEach((b) => {
+    b.classList.toggle('selected', b.dataset.lang === getLang());
+  });
+};
+syncLangButtons();
 
 let paused = false;
+let panelFromGame = false;
 // le même panneau sert de pause en jeu et de réglages depuis l'écran titre
 function openPanel(fromGame) {
-  $id('pause-title').textContent = fromGame ? 'PAUSE' : 'RÉGLAGES';
-  $id('resume-btn').innerHTML = fromGame ? '▶&nbsp;&nbsp;REPRENDRE' : '✔&nbsp;&nbsp;FERMER';
+  panelFromGame = fromGame;
+  $id('pause-title').textContent = t(fromGame ? 'PAUSE' : 'RÉGLAGES');
+  $id('resume-btn').textContent = t(fromGame ? '▶ REPRENDRE' : '✔ FERMER');
   $id('quit-btn').classList.toggle('hidden', !fromGame);
   ui.show('#pause-screen');
   if (fromGame) {
@@ -137,6 +175,15 @@ function closePanel() {
   paused = false;
 }
 $id('pause-btn').addEventListener('click', () => { audio.click(); openPanel(true); });
+$id('stats-btn').addEventListener('click', () => {
+  audio.unlock();
+  audio.click();
+  ui.openStats();
+});
+$id('stats-close').addEventListener('click', () => {
+  audio.click();
+  ui.hide('#stats-screen');
+});
 $id('settings-btn').addEventListener('click', () => {
   audio.unlock();
   audio.click();
@@ -162,6 +209,34 @@ $id('vib-check').addEventListener('change', (e) => {
   savePrefs({ haptics: e.target.checked });
   audio.click();
 });
+$id('music-check').addEventListener('change', (e) => {
+  audio.setMusic(e.target.checked);
+  savePrefs({ music: e.target.checked });
+  audio.click();
+});
+// changement de langue : re-traduit l'écran, garde le panneau cohérent
+document.querySelectorAll('#lang-pick .langb').forEach((b) => {
+  b.addEventListener('click', () => {
+    audio.click();
+    setLang(b.dataset.lang);
+    savePrefs({ lang: b.dataset.lang });
+    applyStatic();
+    ui.syncTeamsLabel(); // le label dépend du mode sélectionné
+    syncLangButtons();
+    $id('pause-title').textContent = t(panelFromGame ? 'PAUSE' : 'RÉGLAGES');
+    $id('resume-btn').textContent = t(panelFromGame ? '▶ REPRENDRE' : '✔ FERMER');
+  });
+});
+// retour au menu depuis l'écran de fin d'un Défi
+$id('menu-btn').addEventListener('click', () => {
+  audio.click();
+  game.toTitle();
+  ui.hide('#end-screen');
+  ui.hide('#hud');
+  $id('menu-btn').classList.add('hidden');
+  ui.show('#title-screen');
+});
+
 $id('tuto-btn').addEventListener('click', () => {
   audio.click();
   tutoSeenSession = true;
@@ -196,8 +271,14 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(0.05, clock.getDelta());
   if (paused) { renderer.render(scene, camera); return; } // image figée
   elapsed += dt;
-  game.update(dt);
-  world.update(dt, elapsed);
-  fx.update(dt);
+  // une exception isolée ne doit pas tuer la boucle rAF de three.js
+  // (sinon le jeu gèle définitivement) : on la signale et on continue
+  try {
+    game.update(dt);
+    world.update(dt, elapsed);
+    fx.update(dt);
+  } catch (err) {
+    console.error(err);
+  }
   renderer.render(scene, camera);
 });

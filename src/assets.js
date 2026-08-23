@@ -199,17 +199,41 @@ export function ballTexture() {
   const s = 256;
   const c = makeCanvas(s, s);
   const g = c.getContext('2d');
-  g.fillStyle = '#f8f8f8'; g.fillRect(0, 0, s, s);
-  g.fillStyle = '#20242c';
-  for (let i = 0; i < 10; i++) {
-    const x = Math.random() * s, y = Math.random() * s, r = 16 + Math.random() * 10;
+  // cuir légèrement ombré, pas blanc plat
+  const bg = g.createLinearGradient(0, 0, s, s);
+  bg.addColorStop(0, '#ffffff');
+  bg.addColorStop(1, '#dfe3ea');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, s, s);
+  // pentagones réguliers en quinconce + coutures
+  const pent = (x, y, r, rot) => {
     g.beginPath();
     for (let k = 0; k < 5; k++) {
-      const a = (k / 5) * Math.PI * 2 + Math.random() * 0.3;
-      const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+      const a = rot + (k / 5) * Math.PI * 2;
+      const px = x + Math.cos(a) * r;
+      const py = y + Math.sin(a) * r;
       k ? g.lineTo(px, py) : g.moveTo(px, py);
     }
-    g.closePath(); g.fill();
+    g.closePath();
+  };
+  g.strokeStyle = 'rgba(90,98,116,0.5)';
+  g.lineWidth = 2;
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 3; col++) {
+      const x = col * 96 + (row % 2 ? 48 : 0) + 16;
+      const y = row * 88 + 28;
+      pent(x, y, 26, row * 0.5 + col * 0.3);
+      g.fillStyle = '#232833';
+      g.fill();
+      // coutures rayonnantes vers les pentagones voisins
+      for (let k = 0; k < 5; k++) {
+        const a = row * 0.5 + col * 0.3 + (k / 5) * Math.PI * 2 + Math.PI / 5;
+        g.beginPath();
+        g.moveTo(x + Math.cos(a) * 27, y + Math.sin(a) * 27);
+        g.lineTo(x + Math.cos(a) * 44, y + Math.sin(a) * 44);
+        g.stroke();
+      }
+    }
   }
   return toTexture(c);
 }
@@ -266,25 +290,41 @@ export function faceTexture() {
   const c = makeCanvas(s, s);
   const g = c.getContext('2d');
   g.clearRect(0, 0, s, s);
-  // yeux
+  // yeux : iris, pupille et reflet — le regard prend vie
   for (const side of [-1, 1]) {
     const x = s / 2 + side * 20;
     g.fillStyle = '#fff';
     g.beginPath(); g.ellipse(x, 58, 11, 13, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#2a2018';
-    g.beginPath(); g.arc(x, 60, 5.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#4a6a3a';
+    g.beginPath(); g.arc(x, 60, 6.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#1d1712';
+    g.beginPath(); g.arc(x, 60, 3.6, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.95)';
+    g.beginPath(); g.arc(x - 2.4, 56.5, 2, 0, Math.PI * 2); g.fill();
+    // paupière supérieure légère
+    g.strokeStyle = 'rgba(120,80,55,0.5)';
+    g.lineWidth = 2.5;
+    g.beginPath(); g.moveTo(x - 10, 50); g.quadraticCurveTo(x, 46, x + 10, 50); g.stroke();
     // sourcil
     g.strokeStyle = 'rgba(40,28,18,0.85)';
     g.lineWidth = 5;
     g.lineCap = 'round';
     g.beginPath();
-    g.moveTo(x - 12, 40); g.quadraticCurveTo(x, 34, x + 12, 40);
+    g.moveTo(x - 12, 40); g.quadraticCurveTo(x, 33, x + 12, 39);
     g.stroke();
   }
-  // bouche déterminée
+  // nez discret
+  g.strokeStyle = 'rgba(150,95,65,0.55)';
+  g.lineWidth = 3;
+  g.beginPath(); g.moveTo(s / 2, 66); g.quadraticCurveTo(s / 2 + 3, 76, s / 2 - 1, 80); g.stroke();
+  // sourire concentré + joues
   g.strokeStyle = 'rgba(120,60,50,0.9)';
   g.lineWidth = 5;
-  g.beginPath(); g.moveTo(s / 2 - 10, 92); g.quadraticCurveTo(s / 2, 96, s / 2 + 10, 92); g.stroke();
+  g.beginPath(); g.moveTo(s / 2 - 12, 90); g.quadraticCurveTo(s / 2, 99, s / 2 + 12, 90); g.stroke();
+  g.fillStyle = 'rgba(230,120,90,0.18)';
+  for (const side of [-1, 1]) {
+    g.beginPath(); g.arc(s / 2 + side * 30, 80, 8, 0, Math.PI * 2); g.fill();
+  }
   return toTexture(c);
 }
 

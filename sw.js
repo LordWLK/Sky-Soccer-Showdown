@@ -1,6 +1,6 @@
 // Service worker : réseau d'abord (les mises à jour arrivent dès qu'on est en
 // ligne), cache en secours (le jeu reste jouable hors-ligne).
-const CACHE = 'sky-soccer-v2';
+const CACHE = 'sky-soccer-v3';
 const CORE = [
   './',
   './index.html',
@@ -10,6 +10,9 @@ const CORE = [
   './src/main.js',
   './src/game.js',
   './src/course.js',
+  './src/obstacles.js',
+  './src/challenges.js',
+  './src/i18n.js',
   './src/world.js',
   './src/players.js',
   './src/ui.js',

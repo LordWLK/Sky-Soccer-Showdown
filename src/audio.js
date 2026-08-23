@@ -36,6 +36,72 @@ function vibrate(pattern) {
   try { if (navigator.vibrate) navigator.vibrate(pattern); } catch { /* non supporté */ }
 }
 
+// ---- nappe musicale générative --------------------------------------------
+// Boucle d'accords lents (arpèges feutrés + basse) planifiée par anticipation :
+// aucune ressource externe, tout est synthétisé.
+let musicGain = null;
+let musicOn = true;
+let musicTimer = null;
+let musicNextBar = 0;
+// la m / Fa / Do / Sol — crépusculaire, jamais fatigant
+const MUSIC_CHORDS = [
+  [220, 261.63, 329.63],
+  [174.61, 220, 261.63],
+  [130.81, 164.81, 196],
+  [196, 246.94, 293.66],
+];
+let musicBarIdx = 0;
+
+function scheduleBar(t0, chord) {
+  const c = ctx;
+  // basse ronde sur la fondamentale
+  const bass = c.createOscillator();
+  const bg = c.createGain();
+  bass.type = 'sine';
+  bass.frequency.value = chord[0] / 2;
+  bg.gain.setValueAtTime(0.0001, t0);
+  bg.gain.exponentialRampToValueAtTime(0.16, t0 + 0.4);
+  bg.gain.exponentialRampToValueAtTime(0.0001, t0 + 3.8);
+  bass.connect(bg).connect(musicGain);
+  bass.start(t0);
+  bass.stop(t0 + 4);
+  // arpège feutré : une note par temps, octave aléatoire douce
+  for (let i = 0; i < 4; i++) {
+    const f = chord[i % chord.length] * (i === 3 ? 2 : 1);
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'triangle';
+    o.frequency.value = f;
+    const nt = t0 + i * 1.0 + 0.02;
+    g.gain.setValueAtTime(0.0001, nt);
+    g.gain.exponentialRampToValueAtTime(0.09, nt + 0.09);
+    g.gain.exponentialRampToValueAtTime(0.0001, nt + 1.7);
+    o.connect(g).connect(musicGain);
+    o.start(nt);
+    o.stop(nt + 1.8);
+  }
+}
+
+function ensureMusic() {
+  if (!ctx || musicTimer) return;
+  musicGain = ctx.createGain();
+  musicGain.gain.value = musicOn ? 1 : 0;
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 1500;
+  musicGain.connect(lp).connect(master);
+  musicNextBar = ctx.currentTime + 0.1;
+  // planification par anticipation : ~1 s d'avance suffit
+  musicTimer = setInterval(() => {
+    if (!musicOn) return;
+    while (musicNextBar < ctx.currentTime + 1.2) {
+      scheduleBar(musicNextBar, MUSIC_CHORDS[musicBarIdx % MUSIC_CHORDS.length]);
+      musicBarIdx += 1;
+      musicNextBar += 4;
+    }
+  }, 500);
+}
+
 // souffle de vent en boucle, dont le volume suit la force du vent
 let windGain = null;
 function ensureWind() {
@@ -76,13 +142,23 @@ function noise({ dur = 0.15, vol = 0.4, freq = 1200, delay = 0 }) {
 }
 
 export const audio = {
-  unlock() { ensure(); },
+  unlock() {
+    ensure();
+    ensureMusic(); // la nappe démarre au premier geste (règle des navigateurs)
+  },
   // réglages utilisateur, persistés par l'appelant
   setVolume(v) {
     volume = Math.max(0, Math.min(1, v));
     if (master) master.gain.value = 0.4 * volume;
   },
   setHaptics(on) { haptics = !!on; },
+  setMusic(on) {
+    musicOn = !!on;
+    if (musicGain) {
+      musicGain.gain.setTargetAtTime(musicOn ? 1 : 0, ctx.currentTime, 0.3);
+      if (musicOn) musicNextBar = Math.max(musicNextBar, ctx.currentTime + 0.2);
+    }
+  },
   click() { tone({ type: 'triangle', from: 660, to: 520, dur: 0.07, vol: 0.25 }); },
   whistle() {
     tone({ type: 'square', from: 2200, to: 2200, dur: 0.09, vol: 0.12 });
@@ -122,6 +198,30 @@ export const audio = {
   miss() {
     tone({ type: 'sawtooth', from: 220, to: 90, dur: 0.3, vol: 0.2 });
     vibrate(18);
+  },
+  // claquement métallique d'un câble percuté
+  ping() {
+    tone({ type: 'square', from: 1700, to: 800, dur: 0.12, vol: 0.28 });
+    noise({ dur: 0.05, vol: 0.28, freq: 2600 });
+    vibrate(20);
+  },
+  // choc sourd contre un drone ou la charge d'une grue
+  thump() {
+    noise({ dur: 0.1, vol: 0.5, freq: 500 });
+    tone({ type: 'sine', from: 190, to: 70, dur: 0.18, vol: 0.5 });
+    vibrate(25);
+  },
+  // bâche élastique
+  boing() {
+    tone({ type: 'sine', from: 150, to: 420, dur: 0.22, vol: 0.38 });
+    tone({ type: 'sine', from: 90, to: 240, dur: 0.22, vol: 0.22, delay: 0.03 });
+    vibrate(15);
+  },
+  // bonus (héliport, étoiles de défi)
+  bonus() {
+    [660, 880, 1320].forEach((f, i) => {
+      tone({ type: 'triangle', from: f, to: f, dur: 0.12, vol: 0.3, delay: i * 0.07 });
+    });
   },
   crack() {
     noise({ dur: 0.16, vol: 0.6, freq: 500 });

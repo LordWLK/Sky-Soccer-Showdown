@@ -1,7 +1,13 @@
 // Interface DOM par-dessus le canvas : écrans, HUD, messages.
 import { NATIONS } from './nations.js';
 import { flagBadgeDataURL } from './assets.js';
-import { recordDuel, recordGolf, recordTournament } from './records.js';
+import {
+  recordDuel, recordGolf, recordTournament, recordChallenge, getChallenges,
+  recordDailyRun, getDailyHist, getDailyStreak, getStats, getAll,
+  checkAchievements, getAchievements, ACHIEVEMENTS,
+} from './records.js';
+import { CHALLENGES } from './challenges.js';
+import { t, tHole } from './i18n.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -17,7 +23,9 @@ function buildTeamPicker(container, initial, onPick) {
   NATIONS.forEach((n, i) => {
     const btn = document.createElement('button');
     btn.className = 'team' + (i === initial ? ' selected' : '');
-    btn.innerHTML = `<img src="${flagBadgeDataURL(n.id)}" alt=""><span>${n.name}</span>`;
+    // data-i18n-src pré-seedé : la carte suit les changements de langue
+    btn.innerHTML = `<img src="${flagBadgeDataURL(n.id)}" alt="">`
+      + `<span data-i18n data-i18n-src="${n.name}">${t(n.name)}</span>`;
     btn.addEventListener('click', () => {
       container.querySelectorAll('.team').forEach((el, j) => el.classList.toggle('selected', j === i));
       onPick(i);
@@ -46,7 +54,7 @@ export function initUI({ onPlay, onReplay, onSelectSound, onClub }) {
       const two = selectedMode === 'duel2';
       $('#teams2').classList.toggle('hidden', !two);
       $('#teams2-label').classList.toggle('hidden', !two);
-      $('#teams-label').textContent = two ? 'Équipe du joueur 1' : 'Choisissez votre équipe';
+      $('#teams-label').textContent = t(two ? 'Équipe du joueur 1' : 'Choisissez votre équipe');
       // le Parcours du jour est le même pour tous : difficulté imposée
       $('#diffs').classList.toggle('hidden', selectedMode === 'daily');
       onSelectSound?.();
@@ -70,6 +78,10 @@ export function initUI({ onPlay, onReplay, onSelectSound, onClub }) {
   });
   $('#play-btn').addEventListener('click', () => onPlay(selectedTeam, selectedMode, selectedDiff, selectedTeam2));
   $('#replay-btn').addEventListener('click', () => onReplay());
+  $('#defis-close').addEventListener('click', () => {
+    ui.hide('#defis-screen');
+    onSelectSound?.();
+  });
   // partage du score : partage natif si possible, sinon copie
   $('#share-btn').addEventListener('click', async () => {
     const text = ui.shareText || `⚽ Sky Soccer Showdown ${location.href}`;
@@ -78,7 +90,7 @@ export function initUI({ onPlay, onReplay, onSelectSound, onClub }) {
         await navigator.share({ text });
       } else {
         await navigator.clipboard.writeText(text);
-        ui.flash('Score copié !', 'small', 1.5);
+        ui.flash(t('Score copié !'), 'small', 1.5);
       }
     } catch { /* partage annulé */ }
   });
@@ -89,10 +101,17 @@ export const ui = {
   show(id) { $(id).classList.remove('hidden'); },
   hide(id) { $(id).classList.add('hidden'); },
 
+  // le label des équipes dépend du mode : à resynchroniser après un
+  // changement de langue (applyStatic le remettrait au libellé par défaut)
+  syncTeamsLabel() {
+    $('#teams-label').textContent = t(selectedMode === 'duel2'
+      ? 'Équipe du joueur 1' : 'Choisissez votre équipe');
+  },
+
   // reconstruit les badges du HUD pour le trio de la partie en cours ;
   // `me` : index du joueur (étiquette VOUS) ou {index: étiquette} à 2 joueurs
   buildChips(nations, me) {
-    const meMap = typeof me === 'number' ? { [me]: 'VOUS' } : (me || {});
+    const meMap = typeof me === 'number' ? { [me]: t('VOUS') } : (me || {});
     const chips = $('#chips');
     chips.innerHTML = '';
     chipEls = nations.map((n, i) => {
@@ -133,6 +152,127 @@ export const ui = {
     this.show('#hud');
   },
 
+  // toasts des succès nouvellement débloqués (fin de partie)
+  toastAchievements() {
+    checkAchievements().forEach((a, i) => {
+      setTimeout(() => this.flash(t('🏅 Succès débloqué : {n} {i}', { n: t(a.name), i: a.ico }), 'goal', 2.8), i * 900);
+    });
+  },
+
+  // écran 🏅 : statistiques, calendrier du Parcours du jour, succès
+  openStats() {
+    const stats = getStats();
+    const all = getAll();
+    const streak = getDailyStreak();
+    const rows = [
+      ['⚽ Buts marqués', stats.goals || 0],
+      ['🎯 Lucarnes', stats.lucarnes || 0],
+      ['🏅 Duels gagnés', `${all.duelWins || 0} / ${all.duelGames || 0}`],
+      ['🏆 Tournois gagnés', `${all.tournamentWins || 0} / ${all.tournamentRuns || 0}`],
+      ['🐦 Birdies · 🦅 Eagles', `${stats.birdies || 0} · ${stats.eagles || 0}`],
+      ['🎳 Trous en un', stats.holeInOne || 0],
+      ['🌟 Étoiles des Défis', `${Object.values(getChallenges()).reduce((a, s) => a + s, 0)} / ${CHALLENGES.length * 3}`],
+      ['🔥 Série du jour', `${streak.current} (record ${streak.best})`],
+    ];
+    $('#stats-rows').innerHTML = rows.map(([k, v]) =>
+      `<div class="stat-row"><span>${t(k)}</span><b>${v}</b></div>`).join('');
+
+    // calendrier des 5 dernières semaines : jours du Parcours du jour joués
+    const hist = getDailyHist();
+    const today = new Date();
+    const cells = [];
+    for (let i = 34; i >= 0; i--) {
+      const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - i));
+      const key = d.toISOString().slice(0, 10);
+      const done = !!hist[key];
+      const isToday = i === 0;
+      cells.push(`<i class="${done ? 'done' : ''}${isToday ? ' today' : ''}" title="${key}">${d.getUTCDate()}</i>`);
+    }
+    $('#stats-cal').innerHTML = cells.join('');
+
+    const unlocked = getAchievements();
+    $('#ach-grid').innerHTML = ACHIEVEMENTS.map((a) => `
+      <div class="ach${unlocked.has(a.id) ? '' : ' locked'}">
+        <span class="ach-ico">${a.ico}</span>
+        <div><b>${t(a.name)}</b><p>${t(a.desc)}</p></div>
+      </div>`).join('');
+    this.show('#stats-screen');
+  },
+
+  // grille de sélection des Défis, avec les étoiles déjà gagnées
+  openDefis(onPick) {
+    const stars = getChallenges();
+    const total = Object.values(stars).reduce((a, s) => a + s, 0);
+    $('#defis-total').textContent = `⭐ ${total} / ${CHALLENGES.length * 3}`;
+    const grid = $('#defis-grid');
+    grid.innerHTML = '';
+    CHALLENGES.forEach((c, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'defi-cell' + (stars[i] ? ' done' : '');
+      const got = stars[i] || 0;
+      btn.innerHTML = `<b>${i + 1}</b><span>${'★'.repeat(got)}${'☆'.repeat(3 - got)}</span>`;
+      btn.title = t(c.name);
+      btn.addEventListener('click', () => {
+        this.hide('#defis-screen');
+        onPick(i);
+      });
+      grid.appendChild(btn);
+    });
+    this.show('#defis-screen');
+  },
+
+  startChallenge() {
+    document.querySelector('#hud').classList.remove('golf');
+    this.hide('#chips'); // un seul tireur : pas de badges d'équipes
+    this.show('#strokes');
+    this.hide('#club');
+    this.hide('#title-screen');
+    this.hide('#end-screen');
+    this.show('#hud');
+  },
+
+  setChallengeHud(idx, spec, shot) {
+    $('#round').textContent = t('🎯 Défi {n} — {name}', { n: idx + 1, name: t(spec.name) });
+    $('#strokes').textContent = `${t(spec.lucarne ? 'Objectif : LUCARNE' : 'Objectif : marquer')} `
+      + t('· Tir {n} / {max}', { n: shot, max: spec.shots });
+  },
+
+  showChallengeEnd(idx, spec, win, stars, hasNext) {
+    const title = $('#end-title');
+    title.textContent = t(win ? 'DÉFI RÉUSSI !' : 'DÉFI MANQUÉ…');
+    title.className = win ? 'win' : 'lose';
+    const rows = $('#end-rows');
+    rows.innerHTML = '';
+    const starRow = document.createElement('div');
+    starRow.className = 'defi-stars';
+    starRow.textContent = win ? '⭐'.repeat(stars) + '☆'.repeat(3 - stars) : '☆☆☆';
+    rows.appendChild(starRow);
+    const nameRow = document.createElement('div');
+    nameRow.className = 'end-row';
+    nameRow.innerHTML = `<span class="end-name">${t('🎯 Défi {n} — {name}', { n: idx + 1, name: t(spec.name) })}</span>`;
+    rows.appendChild(nameRow);
+    const line = document.createElement('div');
+    line.className = 'end-record';
+    if (win) {
+      const rec = recordChallenge(idx, stars);
+      line.textContent = (rec.improved ? t('⭐ RECORD DU DÉFI ! ') : '')
+        + t('Étoiles totales : {n} / {max}', { n: rec.total, max: CHALLENGES.length * 3 });
+      this.shareText = t('🎯 Sky Soccer Showdown — Défi « {name} » réussi {stars} ! {url}',
+        { name: t(spec.name), stars: '⭐'.repeat(stars), url: location.href });
+    } else {
+      const total = Object.values(getChallenges()).reduce((a, s) => a + s, 0);
+      line.textContent = t('Étoiles totales : {n} / {max}', { n: total, max: CHALLENGES.length * 3 });
+      this.shareText = t('🎯 Sky Soccer Showdown — le défi « {name} » me résiste… {url}',
+        { name: t(spec.name), url: location.href });
+    }
+    rows.appendChild(line);
+    $('#replay-btn').textContent = t(win && hasNext ? '➜ DÉFI SUIVANT' : '↻ REJOUER');
+    $('#menu-btn').classList.remove('hidden');
+    this.hide('#hud');
+    this.show('#end-screen');
+    this.toastAchievements();
+  },
+
   syncClub(club) {
     document.querySelectorAll('#club .clubb').forEach((el) => {
       el.classList.toggle('selected', el.dataset.club === club);
@@ -140,8 +280,8 @@ export const ui = {
   },
 
   setGolfHud(spec, holeCount, strokes, dist) {
-    $('#round').textContent = `⛳ ${spec.name} / ${holeCount} — Par ${spec.par}`;
-    $('#strokes').textContent = `Coups : ${strokes} · but à ${Math.round(dist)} m`;
+    $('#round').textContent = `⛳ ${tHole(spec.name)} / ${holeCount} — Par ${spec.par}`;
+    $('#strokes').textContent = t('Coups : {n} · but à {d} m', { n: strokes, d: Math.round(dist) });
   },
 
   // carte de score à trois colonnes : une par nation, joueur surligné
@@ -164,56 +304,75 @@ export const ui = {
     holes.forEach((h) => {
       const row = document.createElement('div');
       row.className = 'end-row';
-      row.innerHTML = `<span class="end-name">⛳ ${h.name} — Par ${h.par}</span>${cells(h.strokes)}`;
+      row.innerHTML = `<span class="end-name">⛳ ${tHole(h.name)} — Par ${h.par}</span>${cells(h.strokes)}`;
       box.appendChild(row);
     });
 
-    const diffs = totals.map((t) => {
-      const d = t - parTotal;
-      return d > 0 ? `+${d}` : d === 0 ? 'par' : d;
+    // NB : ne pas nommer le paramètre « t » — il masquerait la fonction i18n
+    const diffs = totals.map((total) => {
+      const d = total - parTotal;
+      return d > 0 ? `+${d}` : d === 0 ? t('par') : d;
     });
     const totalRow = document.createElement('div');
     totalRow.className = 'end-row golf-total';
-    totalRow.innerHTML = `<span class="end-name">Total — Par ${parTotal}</span>${cells(
-      totals.map((t, i) => `${t}<em>${diffs[i]}</em>`),
+    totalRow.innerHTML = `<span class="end-name">${t('Total — Par {n}', { n: parTotal })}</span>${cells(
+      totals.map((total, i) => `${total}<em>${diffs[i]}</em>`),
     )}`;
     box.appendChild(totalRow);
 
     const kind = meta.kind || 'p3';
     const rec = recordGolf(totals[playerIdx], kind, meta.date, parTotal);
-    const label = kind === 'daily' ? `Parcours du jour (${meta.date})`
-      : kind === 'p9' ? 'Meilleur parcours 9 trous' : 'Meilleur parcours 3 trous';
+    const label = kind === 'daily' ? t('Parcours du jour ({d})', { d: meta.date })
+      : t(kind === 'p9' ? 'Meilleur parcours 9 trous' : 'Meilleur parcours 3 trous');
     // hors « du jour », les parcours changent à chaque partie : le record est
     // l'écart au par, seul chiffre comparable entre deux tracés
-    const scoreTxt = kind === 'daily' ? `${rec.best} coups (par ${parTotal})`
-      : rec.best === 0 ? 'au par'
-        : rec.best < 0 ? `${-rec.best} sous le par`
-          : `${rec.best} au-dessus du par`;
+    const scoreTxt = kind === 'daily' ? t('{n} coups (par {p})', { n: rec.best, p: parTotal })
+      : rec.best === 0 ? t('au par')
+        : rec.best < 0 ? t('{n} sous le par', { n: -rec.best })
+          : t('{n} au-dessus du par', { n: rec.best });
     const line = document.createElement('div');
     line.className = 'end-record';
-    line.textContent = `${rec.newBest ? '⭐ NOUVEAU RECORD ! ' : ''}${label} : ${scoreTxt}`;
+    line.textContent = `${rec.newBest ? t('⭐ NOUVEAU RECORD ! ') : ''}${label} : ${scoreTxt}`;
     box.appendChild(line);
-    this.shareText = kind === 'daily'
-      ? `⛳ Sky Soccer Showdown — Parcours du jour ${meta.date} bouclé en `
-        + `${totals[playerIdx]} coups (${diffs[playerIdx]}) avec ${nations[playerIdx].name}. `
-        + `Battez-moi ! ${location.href}`
-      : `⛳ Sky Soccer Showdown — Parcours ${holes.length} trous bouclé en ${totals[playerIdx]} coups`
-        + ` (${diffs[playerIdx]}) avec ${nations[playerIdx].name} ! ${location.href}`;
+    if (kind === 'daily') {
+      // série façon casse-tête quotidien : jauge du retour de chaque jour
+      const holeDiffs = holes.map((h) => h.strokes[playerIdx] - h.par);
+      const holeStrokes = holes.map((h) => h.strokes[playerIdx]);
+      const streak = recordDailyRun(meta.date, totals[playerIdx], parTotal, holeDiffs, holeStrokes);
+      const sline = document.createElement('div');
+      sline.className = 'end-record';
+      sline.textContent = t('🔥 Série : {c} jour(s) · record {b} · {p} joué(s) en tout',
+        { c: streak.current, b: streak.best, p: streak.played });
+      box.appendChild(sline);
+      // grille d'émojis à partager (un carré par trou)
+      const sq = (d, s) => (s === 1 ? '🎯' : d <= -2 ? '🟪' : d === -1 ? '🟩'
+        : d === 0 ? '🟨' : d === 1 ? '🟧' : '🟥');
+      const grid = holes.map((h) => sq(h.strokes[playerIdx] - h.par, h.strokes[playerIdx])).join('');
+      this.shareText = t('⛳ Sky Soccer Showdown — Parcours du jour {date}\n{grid} {n} coups ({d}) · Série {s} 🔥\nBattez-moi ! {url}',
+        { date: meta.date, grid, n: totals[playerIdx], d: diffs[playerIdx], s: streak.current, url: location.href });
+    } else {
+      this.shareText = t('⛳ Sky Soccer Showdown — Parcours {h} trous bouclé en {n} coups ({d}) avec {nat} ! {url}', {
+        h: holes.length, n: totals[playerIdx], d: diffs[playerIdx],
+        nat: t(nations[playerIdx].name), url: location.href,
+      });
+    }
+    this.toastAchievements();
 
-    $('#replay-btn').innerHTML = '↻&nbsp;&nbsp;REJOUER';
+    $('#replay-btn').textContent = t('↻ REJOUER');
+    $('#menu-btn').classList.add('hidden');
     this.hide('#hud');
     this.show('#end-screen');
   },
 
   setRound(n, max, suddenDeath, prefix) {
-    $('#round').textContent = (prefix ? `🏆 ${prefix} · ` : '')
-      + (suddenDeath ? '⚡ Mort subite' : `Manche ${n} / ${max}`);
+    $('#round').textContent = (prefix ? `🏆 ${t(prefix)} · ` : '')
+      + (suddenDeath ? t('⚡ Mort subite') : t('Manche {n} / {max}', { n, max }));
   },
 
   setWind(a) {
     const el = $('#wind');
     if (!a) {
-      el.textContent = '💨 vent nul';
+      el.textContent = t('💨 vent nul');
       el.classList.remove('strong');
     } else {
       const arrows = (a > 0 ? '→' : '←').repeat(Math.min(3, Math.ceil(Math.abs(a) / 0.4)));
@@ -225,6 +384,7 @@ export const ui = {
   updateChips(shooters) {
     shooters.forEach((s, i) => {
       const el = chipEls[i];
+      if (!el) return; // mode Défi : un seul tireur, pas de puces
       el.querySelector('.chip-score').textContent = s.score;
       const pips = el.querySelectorAll('.pips i');
       pips.forEach((p, j) => p.classList.toggle('off', j >= s.lives));
@@ -281,45 +441,53 @@ export const ui = {
       const row = document.createElement('div');
       row.className = 'end-row' + (meMap[i] ? ' me' : '') + (s.alive ? '' : ' dead');
       row.innerHTML = `<img src="${flagBadgeDataURL(s.nation.id)}" alt="">
-        <span class="end-name">${s.nation.name}${meMap[i] || ''}</span>
-        <span class="end-status">${s.alive ? '' : 'tombée au champ d’honneur'}</span>
+        <span class="end-name">${t(s.nation.name)}${meMap[i] || ''}</span>
+        <span class="end-status">${s.alive ? '' : t('tombée au champ d\'honneur')}</span>
         <span class="end-score">${s.score}</span>`;
       rows.appendChild(row);
     });
     if (result && result.mode === 'duel') {
       const rec = recordDuel(result.playerScore, result.won);
+      const plur = (n, w) => `${n} ${t(w)}${n > 1 ? 's' : ''}`;
       const line = document.createElement('div');
       line.className = 'end-record';
-      line.textContent = `${rec.newBest ? '⭐ NOUVEAU RECORD ! ' : ''}Record : ${rec.best} buts`
-        + ` · ${rec.wins} victoire${rec.wins > 1 ? 's' : ''} en ${rec.games} match${rec.games > 1 ? 's' : ''}`;
+      line.textContent = (rec.newBest ? t('⭐ NOUVEAU RECORD ! ') : '')
+        + t('Record : {b} · {v} en {m}', {
+          b: plur(rec.best, 'but'), v: plur(rec.wins, 'victoire'), m: plur(rec.games, 'match'),
+        });
       rows.appendChild(line);
-      this.shareText = `⚽ Sky Soccer Showdown — ${result.won ? 'Victoire' : 'Duel'} :`
-        + ` ${result.playerScore} but${result.playerScore > 1 ? 's' : ''} avec ${result.nation} !`
-        + ` ${location.href}`;
+      this.shareText = t('⚽ Sky Soccer Showdown — {r} : {n} avec {nat} ! {url}', {
+        r: t(result.won ? 'Victoire' : 'Duel'), n: plur(result.playerScore, 'but'),
+        nat: t(result.nation), url: location.href,
+      });
     } else if (result && result.mode === 'tourney') {
       const line = document.createElement('div');
       line.className = 'end-record';
       if (result.next) {
         // tournoi encore en cours : pas de record, on annonce le match suivant
-        line.textContent = `Prochain match — ${result.next.stage} : ${result.next.foes[0]} et ${result.next.foes[1]}`;
-        this.shareText = `⚽ Sky Soccer Showdown — En route vers la ${result.next.stage.toLowerCase()}`
-          + ` du tournoi avec ${result.nation} ! ${location.href}`;
+        line.textContent = t('Prochain match — {stage} : {a} et {b}',
+          { stage: result.next.stage, a: result.next.foes[0], b: result.next.foes[1] });
+        this.shareText = t('⚽ Sky Soccer Showdown — En route vers la {stage} du tournoi avec {nat} ! {url}',
+          { stage: result.next.stage.toLowerCase(), nat: t(result.nation), url: location.href });
       } else {
         const rec = recordTournament(!!result.champion);
-        line.textContent = `🏆 Tournois remportés : ${rec.wins} sur ${rec.runs}`;
+        line.textContent = t('🏆 Tournois remportés : {w} sur {r}', { w: rec.wins, r: rec.runs });
         this.shareText = result.champion
-          ? `🏆 Sky Soccer Showdown — Champion du tournoi avec ${result.nation} ! ${location.href}`
-          : `⚽ Sky Soccer Showdown — Tournoi : ${result.eliminated ? `élimination en ${result.eliminated.toLowerCase()}` : 'éliminé'}`
-            + ` avec ${result.nation}. ${location.href}`;
+          ? t('🏆 Sky Soccer Showdown — Champion du tournoi avec {nat} ! {url}',
+            { nat: t(result.nation), url: location.href })
+          : t('⚽ Sky Soccer Showdown — Tournoi : élimination en {stage} avec {nat}. {url}', {
+            stage: (result.eliminated || '').toLowerCase(), nat: t(result.nation), url: location.href,
+          });
       }
       rows.appendChild(line);
     } else {
-      this.shareText = `⚽ Sky Soccer Showdown — ${title} ${location.href}`;
+      this.shareText = t('⚽ Sky Soccer Showdown — {title} {url}', { title, url: location.href });
     }
     // au fil d'un tournoi, REJOUER devient CONTINUER (match suivant)
-    $('#replay-btn').innerHTML = result && result.next
-      ? '➜&nbsp;&nbsp;CONTINUER' : '↻&nbsp;&nbsp;REJOUER';
+    $('#replay-btn').textContent = t(result && result.next ? '➜ CONTINUER' : '↻ REJOUER');
+    $('#menu-btn').classList.add('hidden'); // réservé aux Défis
     this.hide('#hud');
     this.show('#end-screen');
+    this.toastAchievements();
   },
 };

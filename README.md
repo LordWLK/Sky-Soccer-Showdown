@@ -36,11 +36,24 @@ Fonctionne aussi hors-ligne.
   - ⛳ **Parcours 3 trous** / 🏙️ **Parcours 9 trous** — golf urbain généré
     procéduralement, contre deux rivales ;
   - 📅 **Parcours du jour** — 3 trous identiques pour le monde entier
-    (graine = date UTC, vent compris), un nouveau défi chaque jour, record
-    du jour et partage « battez-moi ».
+    (graine = date UTC, vent compris), un nouveau défi chaque jour, avec
+    **série de jours consécutifs** et **partage en grille d'émojis** façon
+    casse-tête quotidien ;
+  - 🎯 **Défis** — 20 tirs d'exception étoilés (1ᵉʳ tir = ⭐⭐⭐) : vent,
+    gardien, lucarne imposée, câbles, drones, grue…
+- **Tir brossé** : glissez en arc de cercle pour donner de l'effet au ballon
+  et contourner gardien et obstacles — la courbe apparaît dans l'aperçu.
+- Dès les manches tardives du Duel, des **obstacles aériens** (câbles,
+  drones, grue) s'invitent entre les toits ; au Parcours, les trous difficiles
+  en sont semés (déterministes pour le Parcours du jour) et certains toits
+  sont spéciaux : **héliport bonus** (−1 coup au centre du H), **bâche
+  élastique** qui relance le ballon, **colonnes d'air ascendant**.
+- **🏅 Palmarès** sur l'écran titre : statistiques, calendrier du Parcours du
+  jour et 16 succès à débloquer.
 - Au premier lancement, un **tutoriel** de trois pictos explique l'essentiel ;
   en jeu, **⏸ met en pause** (reprendre ou quitter) et **⚙️ sur l'écran
-  titre** règle volume et vibrations (persistés sur l'appareil).
+  titre** règle volume, vibrations, **musique d'ambiance** et **langue
+  (français / anglais)** — persistés sur l'appareil.
 - **Glissez vers le bas** pour régler la puissance, **latéralement** pour la
   direction (une trajectoire en pointillés vous guide), **relâchez** pour tirer.
 - Chaque manche, les trois tireurs frappent : **but = +1 point**,
@@ -67,6 +80,9 @@ Fonctionne aussi hors-ligne.
 | `src/players.js` | tireurs low-poly, planches, badges, animations |
 | `src/game.js` | machine à états (Duel, Tournoi, Parcours), balistique, IA, score, caméra |
 | `src/course.js` | générateur procédural de parcours (graine, Parcours du jour) |
+| `src/obstacles.js` | câbles, drones, grues, colonnes d'air (visuels + colliders) |
+| `src/challenges.js` | les 20 Défis (données) |
+| `src/i18n.js` | localisation français / anglais |
 | `src/fx.js` | traînées comète, débris, confettis |
 | `src/audio.js` | sons synthétisés (WebAudio), volume/vibrations réglables |
 | `src/ui.js` | liaison DOM (HUD, écrans, messages) |
@@ -82,8 +98,12 @@ simulation numérique — détails dans [GAME_DESIGN.md](GAME_DESIGN.md), §4.
 - **v0 — prototype jouable** ✅
 - **v1 — la grande passe** ✅ : lucarnes ×2, gardien, jour/nuit, clubs,
   duel à 2, difficultés, records + partage, PWA, ralenti de but
-- **v2 — parcours infinis & tournoi** ✅ *(vous êtes ici)* : générateur
-  procédural, Parcours 9 trous, Parcours du jour, mode Tournoi, pause,
-  réglages, tutoriel
-- **v3 — idées** : obstacles entre les toits, toits spéciaux, duel en ligne,
-  classement mondial du Parcours du jour
+- **v2 — parcours infinis & tournoi** ✅ : générateur procédural, Parcours
+  9 trous, Parcours du jour, mode Tournoi, pause, réglages, tutoriel
+- **v3 — l'arsenal** ✅ *(vous êtes ici)* : tir brossé, obstacles aériens,
+  toits spéciaux, mode Défis (20 niveaux étoilés), série du jour + partage
+  emoji, statistiques & succès, musique d'ambiance, version anglaise, et
+  une direction artistique rehaussée (rendu ACES, ciel étoilé et lune,
+  néons, projecteurs, personnages expressifs)
+- **v4 — idées** : duel à 2 en ligne, classement mondial du Parcours du
+  jour, replays de buts, nouveaux décors de ville

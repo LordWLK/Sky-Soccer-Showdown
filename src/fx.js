@@ -9,8 +9,10 @@ export function createFx(scene) {
   const trails = [];   // {sprite, life, maxLife, size}
   const debris = [];   // {mesh, vel, spin, life}
   const confetti = []; // {mesh, vel, spin, life, maxLife}
+  const rings = [];    // ondes de choc des buts {mesh, life, maxLife}
 
   const confettiGeo = new THREE.PlaneGeometry(0.16, 0.24);
+  const ringGeo = new THREE.RingGeometry(0.55, 0.72, 40);
 
   function trailMat(color) {
     if (!trailMats.has(color)) {
@@ -47,6 +49,17 @@ export function createFx(scene) {
         spin: new THREE.Vector3(Math.random() * 6 - 3, Math.random() * 6 - 3, Math.random() * 6 - 3),
         life: 0,
       });
+    },
+
+    // onde de choc lumineuse dans le plan du but
+    shockwave(pos, color = 0xfff2c0) {
+      const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity: 0.9, side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }));
+      m.position.copy(pos);
+      scene.add(m);
+      rings.push({ mesh: m, life: 0, maxLife: 0.55 });
     },
 
     // explosion de confettis (but !)
@@ -108,6 +121,20 @@ export function createFx(scene) {
           d.mesh.material.dispose();
           debris.splice(i, 1);
         }
+      }
+      for (let i = rings.length - 1; i >= 0; i--) {
+        const r = rings[i];
+        r.life += dt;
+        const u = r.life / r.maxLife;
+        if (u >= 1) {
+          scene.remove(r.mesh);
+          r.mesh.material.dispose();
+          rings.splice(i, 1);
+          continue;
+        }
+        const s = 1 + u * 7;
+        r.mesh.scale.set(s, s, 1);
+        r.mesh.material.opacity = 0.9 * (1 - u) * (1 - u);
       }
       for (let i = confetti.length - 1; i >= 0; i--) {
         const c = confetti[i];

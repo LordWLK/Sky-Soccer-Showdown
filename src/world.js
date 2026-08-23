@@ -2,13 +2,17 @@
 import * as THREE from 'three';
 import {
   cloudTexture, towerTextures, grassTexture, pitchTexture, netTexture,
-  concreteTexture, helipadTexture,
+  concreteTexture, helipadTexture, softDotTexture,
 } from './assets.js';
 import { buildFigure } from './players.js';
 import { mulberry32 } from './course.js';
+import { buildObstacles } from './obstacles.js';
 
 // registre des matériaux de façades : leurs fenêtres s'allument à la nuit
 const WALL_MATS = [];
+// feux rouges d'antennes (clignotent la nuit) et enseignes néon
+const BLINKERS = [];
+const NEONS = [];
 
 // ciel repeint dynamiquement entre jour et nuit
 function createSky() {
@@ -132,7 +136,7 @@ export function buildWorld(scene) {
   const keeper = buildFigure({
     shirt: 0x3a3f4a, shorts: 0x22252c, socks: 0x3a3f4a, accent: 0xf5d020,
     skin: 0xd9a06b, hair: 0x1e1712, hairStyle: 'crew',
-    number: 1, numColor: '#f5d020',
+    number: 1, numColor: '#f5d020', gloves: true,
   });
   keeper.rotation.y = Math.PI;
   keeper.position.set(0, 0, -GOAL_SETBACK + 0.7);
@@ -158,13 +162,97 @@ export function buildWorld(scene) {
     clouds.push(sp);
   }
 
+  // ------------------------------------------------------ ciel habillé ----
+  // contre-jour bleuté venu de la ville : les silhouettes se détachent
+  const rimLight = new THREE.DirectionalLight(0x9db8ff, 0.4);
+  rimLight.position.set(-40, 30, -80);
+  scene.add(rimLight);
+
+  // étoiles — n'apparaissent qu'à la nuit tombée
+  const starGeo = new THREE.BufferGeometry();
+  {
+    const pts = [];
+    for (let i = 0; i < 320; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r2 = 150 + Math.random() * 120;
+      pts.push(Math.cos(a) * r2, 20 + Math.random() * 130, Math.sin(a) * r2 - 60);
+    }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  }
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
+    color: 0xeef4ff, size: 1.1, sizeAttenuation: false,
+    transparent: true, opacity: 0, depthWrite: false, fog: false,
+  }));
+  scene.add(stars);
+
+  const moon = new THREE.Mesh(
+    new THREE.CircleGeometry(7, 24),
+    new THREE.MeshBasicMaterial({ color: 0xf4f0e2, transparent: true, opacity: 0, fog: false }),
+  );
+  moon.position.set(-70, 74, -190);
+  scene.add(moon);
+
+  // disque solaire : bien visible au crépuscule, descend avec le soir
+  const sunDisc = new THREE.Mesh(
+    new THREE.CircleGeometry(9, 24),
+    new THREE.MeshBasicMaterial({
+      color: 0xffd9a0, transparent: true, opacity: 0.35,
+      blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+    }),
+  );
+  sunDisc.position.set(85, 42, -185);
+  scene.add(sunDisc);
+
+  // nappe urbaine tout en bas : la trame des rues s'allume à la nuit
+  const streets = new THREE.Mesh(
+    new THREE.PlaneGeometry(560, 560),
+    new THREE.MeshBasicMaterial({
+      map: streetsTexture(), transparent: true, opacity: 0.32, depthWrite: false,
+    }),
+  );
+  streets.rotation.x = -Math.PI / 2;
+  streets.position.set(0, -35.5, -60);
+  scene.add(streets);
+
+  // projecteurs de stade aux coins des deux toits : halos qui s'allument le soir
+  const floods = [];
+  const dotTex = softDotTexture();
+  const addFlood = (parent, x, y, z) => {
+    const mast = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.09, 0.13, 3.4, 6),
+      new THREE.MeshLambertMaterial({ color: 0x3c414d }),
+    );
+    mast.position.set(x, y + 1.7, z);
+    parent.add(mast);
+    const head = new THREE.Mesh(
+      new THREE.BoxGeometry(0.9, 0.5, 0.35),
+      new THREE.MeshLambertMaterial({ color: 0xe8ecf4, emissive: 0xfff6d8, emissiveIntensity: 0.15 }),
+    );
+    head.position.set(x, y + 3.4, z);
+    head.rotation.x = 0.5;
+    parent.add(head);
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: dotTex, color: 0xfff2c0, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    halo.scale.set(5.5, 5.5, 1);
+    halo.position.set(x, y + 3.6, z);
+    parent.add(halo);
+    floods.push({ head: head.material, halo: halo.material });
+  };
+  addFlood(ourGroup, -15.4, ROOF_Y, -2.2);
+  addFlood(ourGroup, 15.4, ROOF_Y, -2.2);
+  addFlood(target, -TARGET_HALF_W + 0.6, 0, -1.2);
+  addFlood(target, TARGET_HALF_W - 0.6, 0, -1.2);
+
   // ---------------------------------------------------------- interface ---
   const state = {
     distance: 26,          // distance actuelle de la façade cible
     targetZ: -26,
     tod: 0,                // heure du jour : 0 = jour, 1 = nuit
     todTarget: 0,
-    keeper: { active: false, speed: 1, phase: 0 },
+    keeper: { active: false, speed: 1, phase: 0, dive: 0, diveDir: 1 },
+    duelObs: null,         // obstacles aériens de la manche (Duel/Défis)
   };
   target.position.z = state.targetZ;
   // le toit visible doit coïncider avec le toit de la physique
@@ -185,6 +273,7 @@ export function buildWorld(scene) {
     setDuelTargetVisible(v) { target.visible = v; },
     // heure du jour cible (0 jour → 1 nuit), transition douce dans update()
     setDayNight(t) { state.todTarget = Math.max(0, Math.min(1, t)); },
+    tod() { return state.tod; }, // lecture (tests, débogage)
     setKeeper(active, speed = 1) {
       state.keeper.active = active;
       state.keeper.speed = speed;
@@ -192,6 +281,17 @@ export function buildWorld(scene) {
     },
     keeperActive() { return state.keeper.active; },
     keeperX() { return keeper.position.x; },
+    // plongeon d'arrêt : le gardien bascule vers le ballon repoussé
+    keeperDive(dir) {
+      state.keeper.dive = 1;
+      state.keeper.diveDir = dir >= 0 ? 1 : -1;
+    },
+    // obstacles aériens de la manche en cours (Duel et Défis)
+    setDuelObstacles(specs) {
+      if (state.duelObs) state.duelObs.dispose();
+      state.duelObs = specs && specs.length ? buildObstacles(scene, specs) : null;
+    },
+    duelColliders() { return state.duelObs ? state.duelObs.colliders : []; },
     // masque les tours de la ville qui chevauchent un parcours
     clearCorridor(boxes) {
       for (const t of cityTowers) {
@@ -206,6 +306,7 @@ export function buildWorld(scene) {
     update(dt, t) {
       // la tour glisse en douceur vers sa nouvelle distance
       target.position.z += (state.targetZ - target.position.z) * Math.min(1, dt * 2.2);
+      if (state.duelObs) state.duelObs.update(dt);
       for (let i = 0; i < clouds.length; i++) {
         clouds[i].position.x += dt * (1.2 + i * 0.25);
         if (clouds[i].position.x > 190) clouds[i].position.x = -190;
@@ -224,12 +325,54 @@ export function buildWorld(scene) {
           (0xea - k * (0xea - 0x34)) / 255,
         );
         for (const m of WALL_MATS) m.emissiveIntensity = 0.85 + k * 1.0;
+        // habillage du ciel et de la ville selon l'heure
+        const nightK = Math.max(0, (k - 0.45) / 0.55);
+        stars.material.opacity = nightK;
+        moon.material.opacity = nightK * 0.95;
+        sunDisc.material.opacity = 0.3 + 2.6 * k * (1 - k); // max au crépuscule
+        sunDisc.position.y = 42 - k * 30;
+        sunDisc.material.color.setRGB(1, 0.85 - k * 0.35, 0.63 - k * 0.3);
+        rimLight.intensity = 0.4 + k * 0.35;
+        streets.material.opacity = 0.32 + k * 0.55;
+        // nuages : blancs le jour, cuivrés au crépuscule, ardoise la nuit
+        const warm = 4 * k * (1 - k);
+        clouds.forEach((sp) => sp.material.color.setRGB(
+          1 - k * 0.62 + warm * 0.05,
+          1 - k * 0.68 - warm * 0.12,
+          1 - k * 0.55 - warm * 0.22,
+        ));
+        for (const f of floods) {
+          f.head.emissiveIntensity = 0.15 + k * 1.6;
+          f.halo.opacity = k * 0.85;
+        }
       }
-      // va-et-vient du gardien le long de sa ligne
+      // feux d'antennes et néons : vie nocturne animée en continu
+      const nk = state.tod;
+      if (BLINKERS.length && nk > 0.2) {
+        for (let i = 0; i < BLINKERS.length; i++) {
+          const on = Math.sin(t * 2.4 + i * 1.7) > 0.1 ? 1 : 0.12;
+          BLINKERS[i].opacity = on * Math.min(1, nk * 1.5);
+        }
+      } else {
+        for (const b of BLINKERS) b.opacity = 0;
+      }
+      for (let i = 0; i < NEONS.length; i++) {
+        const flicker = Math.sin(t * 11 + i * 5.3) > -0.92 ? 1 : 0.35;
+        NEONS[i].opacity = Math.max(0, nk - 0.2) * 1.25 * flicker;
+      }
+      // va-et-vient du gardien le long de sa ligne — plus un plongeon d'arrêt
       if (state.keeper.active) {
         state.keeper.phase += dt * state.keeper.speed;
-        keeper.position.x = Math.sin(state.keeper.phase) * (GOAL_W / 2 - 0.6);
-        keeper.rotation.z = -Math.cos(state.keeper.phase) * 0.12;
+        if (state.keeper.dive > 0) {
+          state.keeper.dive = Math.max(0, state.keeper.dive - dt * 2.2);
+          const d = Math.sin((1 - state.keeper.dive) * Math.PI);
+          keeper.rotation.z = state.keeper.diveDir * d * 1.15;
+          keeper.position.y = d * 0.55;
+        } else {
+          keeper.position.x = Math.sin(state.keeper.phase) * (GOAL_W / 2 - 0.6);
+          keeper.rotation.z = -Math.cos(state.keeper.phase) * 0.12;
+          keeper.position.y = 0;
+        }
       }
     },
   };
@@ -301,6 +444,53 @@ function buildGoal(withCorners = false) {
   return goal;
 }
 
+// trame de rues vue de très haut : lueur chaude des artères, brume aidant
+function streetsTexture() {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#0b101f';
+  g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i <= 8; i++) {
+    const p = i * 32 + ((i * 37) % 9) - 4;
+    g.strokeStyle = 'rgba(255,190,110,0.55)';
+    g.lineWidth = i % 3 === 0 ? 3 : 1.5;
+    g.beginPath(); g.moveTo(p, 0); g.lineTo(p, 256); g.stroke();
+    g.beginPath(); g.moveTo(0, p); g.lineTo(256, p); g.stroke();
+  }
+  // poussière de fenêtres et de phares
+  for (let i = 0; i < 260; i++) {
+    g.fillStyle = Math.random() < 0.7 ? 'rgba(255,205,130,0.5)' : 'rgba(150,200,255,0.45)';
+    g.fillRect((Math.random() * 256) | 0, (Math.random() * 256) | 0, 1.5, 1.5);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(3, 3);
+  return tex;
+}
+
+// enseigne au néon : texte lumineux à halo sur fond transparent
+function neonTexture(word, color) {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 64;
+  const g = c.getContext('2d');
+  g.font = '900 42px system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.shadowColor = color;
+  g.shadowBlur = 16;
+  g.strokeStyle = color;
+  g.lineWidth = 2.5;
+  g.strokeText(word, 128, 34);
+  g.shadowBlur = 4;
+  g.fillStyle = '#ffffff';
+  g.fillText(word, 128, 34);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 function buildCity(city) {
   const towers = [];
   const rand = mulberry32(20250818);
@@ -320,7 +510,72 @@ function buildCity(city) {
     const tower = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMaterial(tex));
     tower.position.set(x, h / 2 - 34, z);
     city.add(tower);
-    towers.push({ x, z, hw: w / 2, hd: d / 2, meshes: [tower] });
+    const meshes = [tower];
+    // silhouettes de toits : châteaux d'eau, antennes à feu rouge, clims —
+    // c'est ce qui donne à la ligne d'horizon son grain de vraie ville
+    const topY = h - 34;
+    if (rand() < 0.62) {
+      const px = x + (rand() - 0.5) * w * 0.5;
+      const pz = z + (rand() - 0.5) * d * 0.5;
+      const kind = rand();
+      if (kind < 0.34) {
+        const tank = new THREE.Mesh(
+          new THREE.CylinderGeometry(1.5, 1.6, 2.6, 9),
+          new THREE.MeshLambertMaterial({ color: 0x37405c }),
+        );
+        tank.position.set(px, topY + 1.3, pz);
+        const cap = new THREE.Mesh(
+          new THREE.ConeGeometry(1.7, 1, 9),
+          new THREE.MeshLambertMaterial({ color: 0x2c3350 }),
+        );
+        cap.position.set(px, topY + 3.1, pz);
+        city.add(tank, cap);
+        meshes.push(tank, cap);
+      } else if (kind < 0.72) {
+        const mastH = 5 + rand() * 5;
+        const mast = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.09, 0.16, mastH, 5),
+          new THREE.MeshLambertMaterial({ color: 0x49506a }),
+        );
+        mast.position.set(px, topY + mastH / 2, pz);
+        const beacon = new THREE.Mesh(
+          new THREE.SphereGeometry(0.32, 8, 6),
+          new THREE.MeshBasicMaterial({ color: 0xff4545, transparent: true, opacity: 0, fog: false }),
+        );
+        beacon.position.set(px, topY + mastH + 0.2, pz);
+        city.add(mast, beacon);
+        meshes.push(mast, beacon);
+        BLINKERS.push(beacon.material);
+      } else {
+        for (let c = 0; c < 2; c++) {
+          const ac = new THREE.Mesh(
+            new THREE.BoxGeometry(1.6, 1, 1.3),
+            new THREE.MeshLambertMaterial({ color: 0x3d4560 }),
+          );
+          ac.position.set(px + c * 2 - 1, topY + 0.5, pz + (rand() - 0.5) * 2);
+          city.add(ac);
+          meshes.push(ac);
+        }
+      }
+    }
+    // enseignes néon en haut de façade, tournées vers les joueurs
+    if (rand() < 0.2 && z < -20) {
+      const words = ['HOTEL', 'CLUB', 'NOVA', 'LUNA', 'RADIO', 'SUSHI', 'CINEMA'];
+      const colors = ['#59f2ff', '#ff6ad5', '#ffd75e', '#7dff8a'];
+      const wIdx = (rand() * words.length) | 0;
+      const neon = new THREE.Mesh(
+        new THREE.PlaneGeometry(Math.min(w * 0.8, 9), 2.2),
+        new THREE.MeshBasicMaterial({
+          map: neonTexture(words[wIdx], colors[(rand() * colors.length) | 0]),
+          transparent: true, opacity: 0, fog: false, depthWrite: false,
+        }),
+      );
+      neon.position.set(x, topY - 3 - rand() * 4, z + d / 2 + 0.15);
+      city.add(neon);
+      meshes.push(neon);
+      NEONS.push(neon.material);
+    }
+    towers.push({ x, z, hw: w / 2, hd: d / 2, meshes });
   }
   // clin d'œil à la tour géodésique de la pub, sur la droite
   const geo = new THREE.Mesh(
@@ -343,6 +598,31 @@ function buildCity(city) {
 // La génération des trous vit dans src/course.js (module sans dépendance,
 // testable sous Node) ; ici on ne garde que la construction 3D.
 
+// bâche élastique : toile bleue tendue, sangles en croix — se repère de loin
+function trampoTexture() {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#2b62c9';
+  g.fillRect(0, 0, 128, 128);
+  g.strokeStyle = '#1c3f85';
+  g.lineWidth = 10;
+  g.strokeRect(5, 5, 118, 118);
+  g.strokeStyle = 'rgba(255,255,255,0.85)';
+  g.lineWidth = 6;
+  g.beginPath();
+  g.moveTo(10, 10); g.lineTo(118, 118);
+  g.moveTo(118, 10); g.lineTo(10, 118);
+  g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,0.35)';
+  g.lineWidth = 3;
+  for (let i = 24; i < 128; i += 24) {
+    g.beginPath(); g.moveTo(i, 6); g.lineTo(i, 122); g.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  return tex;
+}
+
 // Construit un trou : tours support, décors de toits, cage sur le toit final.
 // Retourne les plateformes (pour la physique) et les infos de la cage.
 export function buildCourse(scene, hole) {
@@ -357,6 +637,7 @@ export function buildCourse(scene, hole) {
     grass: () => grassTexture(),
     concrete: () => concreteTexture(),
     helipad: () => helipadTexture(),
+    trampo: () => trampoTexture(),
   };
 
   function addPlatform(p, deco) {
@@ -383,7 +664,8 @@ export function buildCourse(scene, hole) {
     top.position.set(p.x, p.topY + 0.03, p.z);
     top.receiveShadow = true;
     group.add(top);
-    platforms.push({ x: p.x, z: p.z, topY: p.topY, hw: p.hw, hd: p.hd });
+    // la deco compte pour le gameplay : bâche qui relance, héliport bonus
+    platforms.push({ x: p.x, z: p.z, topY: p.topY, hw: p.hw, hd: p.hd, deco });
   }
 
   for (const p of hole.platforms) addPlatform(p, p.deco);
@@ -406,11 +688,15 @@ export function buildCourse(scene, hole) {
   group.add(goal);
 
   scene.add(group);
+  // obstacles et colonnes d'air seedés avec le trou (équité du jour)
+  const obs = buildObstacles(scene, hole.obstacles || [], hole.lifts || []);
   return {
     platforms,
     goalInfo: { x: gp.x, lineZ: goalLineZ, roofY: gp.topY, platform: platforms[platforms.length - 1] },
     boxes: platforms.map((p) => ({ x: p.x, z: p.z, hw: p.hw, hd: p.hd })),
+    obs,
     dispose() {
+      obs.dispose();
       scene.remove(group);
       group.traverse((m) => {
         if (m.isMesh) {

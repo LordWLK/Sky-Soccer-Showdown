@@ -83,7 +83,11 @@ export class Shooter {
   // pour ne pas masquer la trajectoire et la cage
   setBadgeFaded(faded) { this.badgeFadeTarget = faded ? 0.1 : 1; }
 
-  celebrate() { this.celebrateT = 0; }
+  celebrate() {
+    this.celebrateT = 0;
+    // trois célébrations : bras au ciel, poing pompé, toupie
+    this.celebrateKind = (Math.random() * 3) | 0;
+  }
 
   breakPlank(fx) {
     this.lives -= 1;
@@ -134,8 +138,11 @@ export class Shooter {
     }
     if (this.celebrateT >= 0) {
       this.celebrateT += dt;
-      y += Math.abs(Math.sin(this.celebrateT * 9)) * 0.3;
-      if (this.celebrateT > 1.2) this.celebrateT = -1;
+      y += Math.abs(Math.sin(this.celebrateT * 9)) * (this.celebrateKind === 2 ? 0.16 : 0.3);
+      if (this.celebrateT > 1.2) {
+        this.celebrateT = -1;
+        this.figure.rotation.y = 0; // fin de toupie : on se remet face au but
+      }
     }
     this.figure.position.y = y;
 
@@ -172,13 +179,26 @@ export class Shooter {
     };
 
     if (this.celebrateT >= 0) {
-      // bras au ciel !
       const u = Math.min(1, this.celebrateT * 5);
-      set({
-        lShZ: -2.6 * u, rShZ: 2.6 * u,
-        lean: -0.12 * u,
-        lEl: -0.2 * u, rEl: -0.2 * u,
-      });
+      if (this.celebrateKind === 1) {
+        // poing pompé, buste cambré
+        set({
+          rShZ: 2.9 * u, rEl: -1.6 * u,
+          lSh: 0.5 * u, lEl: 0.6 * u,
+          lean: -0.18 * u, twist: 0.25 * u,
+        });
+      } else if (this.celebrateKind === 2) {
+        // toupie bras ouverts
+        this.figure.rotation.y = this.celebrateT * 6.5;
+        set({ lShZ: -1.5 * u, rShZ: 1.5 * u, lean: -0.08 * u });
+      } else {
+        // bras au ciel !
+        set({
+          lShZ: -2.6 * u, rShZ: 2.6 * u,
+          lean: -0.12 * u,
+          lEl: -0.2 * u, rEl: -0.2 * u,
+        });
+      }
       return;
     }
 
@@ -218,11 +238,15 @@ export class Shooter {
       return;
     }
 
-    // attitude au repos : balancement discret, coudes semi-fléchis
+    // attitude au repos : balancement discret, coudes semi-fléchis,
+    // micro-transferts d'appui — la rangée de tireurs respire
     const s = Math.sin(t * 2 + this.homeX);
+    const s2 = Math.sin(t * 0.7 + this.homeX * 2.3);
     set({
       rHip: s * 0.04, lHip: -s * 0.04,
+      rKnee: Math.max(0, s2) * -0.08, lKnee: Math.max(0, -s2) * -0.08,
       lean: Math.sin(t * 1.6 + this.homeX) * 0.03,
+      twist: s2 * 0.04,
       lSh: s * 0.08, rSh: -s * 0.08,
       lEl: 0.25 + s * 0.04, rEl: 0.25 - s * 0.04,
     });
@@ -243,6 +267,7 @@ export function buildFigure(nation) {
     hair: new THREE.MeshLambertMaterial({ color: nation.hair }),
     boot: new THREE.MeshLambertMaterial({ color: 0x23262c }),
     bootSole: new THREE.MeshLambertMaterial({ color: 0x111318 }),
+    gloves: !!nation.gloves,
   };
 
   // ------------------------------------------------------------- buste ----
@@ -253,6 +278,10 @@ export function buildFigure(nation) {
   const hips = mesh(new THREE.BoxGeometry(0.56, 0.3, 0.38), mat.shorts, 0, 0.13, 0);
   const hemL = mesh(new THREE.BoxGeometry(0.24, 0.06, 0.39), mat.accent, -0.16, -0.02, 0);
   const hemR = mesh(new THREE.BoxGeometry(0.24, 0.06, 0.39), mat.accent, 0.16, -0.02, 0);
+  // bandes latérales du short : la tenue gagne en lecture de profil
+  const sideL = mesh(new THREE.BoxGeometry(0.02, 0.3, 0.3), mat.accent, -0.29, 0.13, 0);
+  const sideR = mesh(new THREE.BoxGeometry(0.02, 0.3, 0.3), mat.accent, 0.29, 0.13, 0);
+  body.add(sideL, sideR);
   const torso = mesh(new THREE.CapsuleGeometry(0.27, 0.34, 6, 14), mat.shirt, 0, 0.55, 0);
   torso.scale.set(1.15, 1, 0.8);
   const collar = mesh(new THREE.CylinderGeometry(0.13, 0.14, 0.06, 12), mat.accent, 0, 0.93, 0);
@@ -321,8 +350,10 @@ function limbArm(mat) {
   const elbow = new THREE.Group(); // pivot au coude
   elbow.position.set(0, -0.3, 0);
   const forearm = mesh(new THREE.CapsuleGeometry(0.07, 0.15, 4, 10), mat.skin, 0, -0.1, 0);
-  const hand = mesh(new THREE.SphereGeometry(0.078, 8, 7), mat.skin, 0, -0.24, 0);
-  elbow.add(forearm, hand);
+  const wrist = mesh(new THREE.CylinderGeometry(0.072, 0.072, 0.05, 8), mat.accent, 0, -0.185, 0);
+  // gants (gardien) : mains à la couleur d'accent
+  const hand = mesh(new THREE.SphereGeometry(0.078, 8, 7), mat.gloves ? mat.accent : mat.skin, 0, -0.24, 0);
+  elbow.add(forearm, wrist, hand);
   shoulder.add(elbow);
   shoulder.userData.elbow = elbow;
   return shoulder;
