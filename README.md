@@ -112,6 +112,8 @@ simulation numérique — détails dans [GAME_DESIGN.md](GAME_DESIGN.md), §4.
   publicitaires, drapeaux de corner dans le vent, lignes luminescentes la
   nuit), poussières dorées du crépuscule et feuilles portées par le vent,
   ville étagée dans la brume, ballon cousu qui roule dans l'axe de sa
-  trajectoire, et **podium de champion en 3D** au bout du Tournoi
+  trajectoire, **transitions iris** à l'ancienne entre les scènes (lancement,
+  trou suivant, retour au menu), et **podium de champion en 3D** au bout du
+  Tournoi
 - **v4 — idées** : duel à 2 en ligne, classement mondial du Parcours du
   jour, replays de buts, nouveaux décors de ville

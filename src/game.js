@@ -154,6 +154,7 @@ export function createGame({ scene, camera, world, fx }) {
     camLook: new THREE.Vector3(0, 2, -30),
     camShake: 0,   // secousses d'impact, amorties exponentiellement
     fovKick: 0,    // coup de zoom au départ du ballon
+    irisNext: false, // transition iris vers le trou suivant en cours
   };
 
   // petite secousse de caméra (frappe, impact, arrêt) — plafond doux
@@ -216,6 +217,7 @@ export function createGame({ scene, camera, world, fx }) {
     game.events = {};
     game.slowmo = 0;
     game.goalCamPoint = null;
+    game.irisNext = false;
     world.setDuelTargetVisible(true);
     world.setDuelObstacles([]);
     world.setKeeper(false);
@@ -2001,9 +2003,17 @@ export function createGame({ scene, camera, world, fx }) {
           game.holeDone = true;
           finishHole();
         }
-        if (game.holeDone && game.t > 3.9) {
-          if (game.golf.hole < game.golf.holes.length - 1) startHole(game.golf.hole + 1);
-          else golfEnd();
+        if (game.holeDone && game.t > 3.9 && !game.irisNext) {
+          if (game.golf.hole < game.golf.holes.length - 1) {
+            // le trou suivant arrive derrière une transition iris ; le flag
+            // évite de la redéclencher tant que le changement n'a pas eu lieu
+            game.irisNext = true;
+            ui.iris(() => {
+              game.irisNext = false;
+              // si la partie a été quittée pendant le noir, on ne relance rien
+              if (game.golf && game.state === 'g_hole') startHole(game.golf.hole + 1);
+            });
+          } else golfEnd();
         }
         break;
       case 'podium': {

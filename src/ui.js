@@ -161,6 +161,28 @@ export const ui = {
     el.classList.add('on');
   },
 
+  // transition iris : l'écran se referme en cercle, `mid` s'exécute au noir
+  // (changement de scène), puis l'iris se rouvre — purement cosmétique, la
+  // machine à états n'attend jamais après elle
+  iris(mid) {
+    const el = $('#iris');
+    const hole = el.firstElementChild;
+    el.style.display = 'block';
+    el.style.pointerEvents = 'auto'; // gobe les taps pendant le noir
+    hole.style.transition = 'none';
+    hole.style.transform = 'translate(-50%, -50%) scale(1)';
+    void hole.offsetWidth;
+    hole.style.transition = 'transform 0.3s cubic-bezier(0.65, 0, 0.85, 0.4)';
+    hole.style.transform = 'translate(-50%, -50%) scale(0)';
+    setTimeout(() => {
+      try { if (mid) mid(); } catch (e) { console.error(e); }
+      el.style.pointerEvents = 'none';
+      hole.style.transition = 'transform 0.44s cubic-bezier(0.16, 0.6, 0.35, 1)';
+      hole.style.transform = 'translate(-50%, -50%) scale(1)';
+      setTimeout(() => { el.style.display = 'none'; }, 500);
+    }, 340);
+  },
+
   // toasts des succès nouvellement débloqués (fin de partie)
   toastAchievements() {
     checkAchievements().forEach((a, i) => {

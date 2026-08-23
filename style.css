@@ -917,3 +917,25 @@ h2.lose { color: #ff9d9d; }
   16% { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* transition iris : un trou circulaire (l'ombre portée fait le rideau) qui
+   se referme sur la scène puis se rouvre sur la suivante — au-dessus des
+   écrans et du HUD, sous le splash */
+#iris {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  overflow: hidden;
+  pointer-events: none;
+}
+#iris i {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  width: 170vmax;
+  height: 170vmax;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  box-shadow: 0 0 0 220vmax #0a1322, inset 0 0 16vmax 3vmax rgba(10, 19, 34, 0.85);
+}

@@ -46,15 +46,13 @@ let tutoSeenSession = false;
 
 initUI({
   onPlay: (teamIdx, mode, difficulty, team2Idx) => {
-    audio.unlock();
-    audio.click();
     const launch = () => {
       game.setDifficulty(difficulty);
       if (mode === 'defis') {
         // la grille de niveaux s'ouvre, le défi choisi lance la partie
         ui.openDefis((idx) => {
           audio.click();
-          game.startChallenge(teamIdx, idx);
+          ui.iris(() => game.startChallenge(teamIdx, idx));
         });
         return;
       }
@@ -66,11 +64,18 @@ initUI({
       else game.startMatch(teamIdx);
     };
     if (!tutoSeenSession && !loadPrefs().tutorialSeen) {
+      audio.unlock();
+      audio.click();
       pendingPlay = launch;
       ui.show('#tuto-screen');
       return;
     }
-    launch();
+    // l'iris répond au doigt sans attendre : l'initialisation audio (qui
+    // peut prendre du temps au tout premier geste) se fait derrière lui —
+    // toujours dans le geste utilisateur, comme l'exigent les navigateurs
+    ui.iris(launch);
+    audio.unlock();
+    audio.click();
   },
   onClub: (club) => {
     audio.click();
@@ -80,20 +85,26 @@ initUI({
     audio.click();
     // en plein tournoi, le bouton enchaîne sur le match suivant
     if (game.hasTournamentNext()) {
-      ui.hide('#end-screen');
-      game.tournamentNext();
+      ui.iris(() => {
+        ui.hide('#end-screen');
+        game.tournamentNext();
+      });
       return;
     }
     // en Défi : DÉFI SUIVANT après une réussite, REJOUER le même sinon
     if (game.hasChallengePending()) {
-      ui.hide('#end-screen');
-      game.challengeReplay();
+      ui.iris(() => {
+        ui.hide('#end-screen');
+        game.challengeReplay();
+      });
       return;
     }
-    game.toTitle();
-    ui.hide('#end-screen');
-    ui.hide('#hud');
-    ui.show('#title-screen');
+    ui.iris(() => {
+      game.toTitle();
+      ui.hide('#end-screen');
+      ui.hide('#hud');
+      ui.show('#title-screen');
+    });
   },
   onSelectSound: () => {
     audio.unlock();
@@ -195,11 +206,14 @@ $id('settings-btn').addEventListener('click', () => {
 $id('resume-btn').addEventListener('click', () => { audio.click(); closePanel(); });
 $id('quit-btn').addEventListener('click', () => {
   audio.click();
-  closePanel();
-  game.toTitle();
-  ui.hide('#hud');
-  ui.hide('#end-screen');
-  ui.show('#title-screen');
+  // l'iris se referme sur la partie figée, s'ouvre sur l'écran titre
+  ui.iris(() => {
+    closePanel();
+    game.toTitle();
+    ui.hide('#hud');
+    ui.hide('#end-screen');
+    ui.show('#title-screen');
+  });
 });
 $id('vol-range').addEventListener('input', (e) => {
   const v = e.target.value / 100;
@@ -233,11 +247,13 @@ document.querySelectorAll('#lang-pick .langb').forEach((b) => {
 // retour au menu depuis l'écran de fin d'un Défi
 $id('menu-btn').addEventListener('click', () => {
   audio.click();
-  game.toTitle();
-  ui.hide('#end-screen');
-  ui.hide('#hud');
-  $id('menu-btn').classList.add('hidden');
-  ui.show('#title-screen');
+  ui.iris(() => {
+    game.toTitle();
+    ui.hide('#end-screen');
+    ui.hide('#hud');
+    $id('menu-btn').classList.add('hidden');
+    ui.show('#title-screen');
+  });
 });
 
 $id('tuto-btn').addEventListener('click', () => {
@@ -247,7 +263,7 @@ $id('tuto-btn').addEventListener('click', () => {
   ui.hide('#tuto-screen');
   const p = pendingPlay;
   pendingPlay = null;
-  if (p) p();
+  if (p) ui.iris(p);
 });
 
 // Écran de démarrage : le logo reste au moins ~2,2 s depuis l'ouverture de

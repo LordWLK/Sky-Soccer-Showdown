@@ -345,7 +345,11 @@ sort** parmi les autres nations à chaque partie.
     soleil sur les façades, ombres 2048) ; ballon en matière brillante qui
     **roule dans l'axe de sa trajectoire** ; **podium 3D de champion** au
     bout du Tournoi (marches or/argent/bronze, coupe scintillante, orbite
-    de caméra, confettis) avant l'écran de fin.
+    de caméra, confettis) avant l'écran de fin ; **transitions iris** à
+    l'ancienne (le cercle se referme, la scène change au noir, le cercle
+    se rouvre) au lancement d'une partie, entre les trous du Parcours et
+    au retour au menu — purement cosmétiques, la machine à états ne les
+    attend jamais.
 - **v4 — idées** : duel à 2 en ligne, classement mondial du Parcours du
   jour, replays de buts, décors de ville alternatifs.
 
