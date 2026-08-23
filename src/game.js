@@ -152,7 +152,14 @@ export function createGame({ scene, camera, world, fx }) {
     windAnnounced: false,
     camPos: new THREE.Vector3(0, 7.5, 16),
     camLook: new THREE.Vector3(0, 2, -30),
+    camShake: 0,   // secousses d'impact, amorties exponentiellement
+    fovKick: 0,    // coup de zoom au départ du ballon
   };
+
+  // petite secousse de caméra (frappe, impact, arrêt) — plafond doux
+  function addShake(a) {
+    game.camShake = Math.min(0.5, game.camShake + a);
+  }
 
   // ------------------------------------------------------------ helpers ---
 
@@ -213,10 +220,28 @@ export function createGame({ scene, camera, world, fx }) {
     world.setDuelObstacles([]);
     world.setKeeper(false);
     world.setDayNight(0);
+    world.clearPodium();
+    world.setWindVisual(0);
+  }
+
+  // rotation alignée sur la direction réelle du vol (axe ⟂ au déplacement)
+  const SPIN_AXIS = new THREE.Vector3();
+  function spinBall(b, dt) {
+    const vx = b.vel.x;
+    const vz = b.vel.z;
+    if (vx * vx + vz * vz > 0.2) {
+      SPIN_AXIS.set(vz, 0, -vx).normalize();
+      b.mesh.rotateOnWorldAxis(SPIN_AXIS, (b.vel.length() / BALL_R) * dt * 0.35);
+    } else {
+      b.mesh.rotation.x -= (b.vel.length() / BALL_R) * dt * 0.35;
+    }
   }
 
   function makeBall(shooter) {
-    const mesh = new THREE.Mesh(ballGeo, new THREE.MeshLambertMaterial({ map: ballTex }));
+    // cuir légèrement satiné : un reflet discret accroche la lumière
+    const mesh = new THREE.Mesh(ballGeo, new THREE.MeshPhongMaterial({
+      map: ballTex, shininess: 34, specular: 0x44403a,
+    }));
     mesh.castShadow = true;
     scene.add(mesh);
     return {
@@ -356,6 +381,7 @@ export function createGame({ scene, camera, world, fx }) {
     ui.setRound(game.round, game.roundsMax, game.round > game.roundsMax,
       game.tournament ? TOURNEY_SHORT[game.tournament.stage] : null);
     ui.setWind(game.wind);
+    world.setWindVisual(game.wind);
     ui.flash(game.round > game.roundsMax ? tr('⚡ Mort subite !') : tr('Manche {n}', { n: game.round }), 'round', 1.4);
     if (game.wind && !game.windAnnounced) {
       game.windAnnounced = true;
@@ -617,6 +643,10 @@ export function createGame({ scene, camera, world, fx }) {
         b.state = 'flying';
         b.t = 0;
         audio.kick();
+        if (isHuman(b.shooter)) {
+          game.fovKick = 1; // la caméra « encaisse » la frappe
+          addShake(0.09);
+        }
       }
       return;
     }
@@ -634,7 +664,7 @@ export function createGame({ scene, camera, world, fx }) {
     pos0.z += b.vel.z * dt;
     b.vel.x += ax * dt;
     b.vel.y -= G * dt;
-    b.mesh.rotation.x -= (b.vel.length() / BALL_R) * dt * 0.35;
+    spinBall(b, dt);
 
     if (b.state === 'flying') {
       // émission le long du segment parcouru : pas de trous même à bas FPS
@@ -659,6 +689,11 @@ export function createGame({ scene, camera, world, fx }) {
       const ix = prev.x + (pos.x - prev.x) * f;
       const iy = prev.y + (pos.y - prev.y) * f;
       const mine = isHuman(b.shooter);
+      // poteaux et barre : la zone limite (déjà non-but) claque et renvoie
+      if (hitWoodwork(b, ix - 0, iy, TARGET_ROOF_Y, glz, mine)) {
+        pos.z = glz + BALL_R;
+        return;
+      }
       if (world.keeperActive() && Math.abs(ix - world.keeperX()) < 0.6
         && iy < TARGET_ROOF_Y + 1.55) {
         // arrêt du gardien : le ballon est repoussé vers le vide
@@ -667,6 +702,7 @@ export function createGame({ scene, camera, world, fx }) {
         b.vel.x = (Math.random() - 0.5) * 4;
         b.vel.y = Math.abs(b.vel.y) * 0.2;
         world.keeperDive(Math.sign(ix - world.keeperX()) || 1);
+        if (mine) addShake(0.12);
         audio.save();
         if (mine) ui.flash(tr('Arrêt du gardien !'), 'small', 1.3);
       } else if (Math.abs(ix) < GOAL_W / 2 - BALL_R * 0.35
@@ -681,6 +717,8 @@ export function createGame({ scene, camera, world, fx }) {
         fx.burst(new THREE.Vector3(ix, iy, glz),
           [0xffffff, b.shooter.nation.trail, 0xffe08a], lucarne ? 64 : 40, lucarne ? 7 : 5);
         fx.shockwave(new THREE.Vector3(ix, iy, glz + 0.1), lucarne ? 0xffd75e : 0xfff2c0);
+        world.punchDuelNet();
+        if (mine) ui.flashScreen(lucarne);
         if (mine) {
           ui.flash(tr(lucarne ? 'LUCARNE ! +2 🎯' : 'BUT ⚽ !'), 'goal', lucarne ? 1.9 : 1.5);
           game.slowmo = 0.85;
@@ -735,6 +773,29 @@ export function createGame({ scene, camera, world, fx }) {
     }
   }
 
+  // Poteaux et barre transversale : ne mord QUE sur la zone qui n'était
+  // déjà pas un but (aucun but existant n'est volé) — le raté devient
+  // spectaculaire au lieu d'être muet. dx : écart au centre de la cage.
+  function hitWoodwork(b, dx, iy, roofY, glz, mine) {
+    const inPostBand = Math.abs(dx) >= GOAL_W / 2 - BALL_R * 0.35
+      && Math.abs(dx) < GOAL_W / 2 + 0.24
+      && iy > roofY - 0.05 && iy < roofY + GOAL_H + 0.1;
+    const inBarBand = iy >= roofY + GOAL_H - BALL_R * 0.25
+      && iy < roofY + GOAL_H + 0.26
+      && Math.abs(dx) < GOAL_W / 2 + 0.1;
+    if (!inPostBand && !inBarBand) return false;
+    b.vel.z = Math.abs(b.vel.z) * 0.3;
+    if (inPostBand) b.vel.x = Math.sign(dx) * Math.abs(b.vel.x || 2) * 0.7 + Math.sign(dx) * 1.5;
+    if (inBarBand) b.vel.y = -Math.abs(b.vel.y) * 0.3 - 1;
+    game.events.post = (game.events.post || 0) + 1;
+    audio.post();
+    if (mine) {
+      addShake(0.2);
+      ui.flash(tr(inBarBand ? 'La barre !' : 'Le poteau !'), 'small', 1.2);
+    }
+    return true;
+  }
+
   // Déviation par les obstacles aériens (câbles, drone, grue). Le point
   // médian du pas est testé aussi : pas de tunnel à bas framerate.
   function hitObstacles(b, prev, colliders) {
@@ -766,6 +827,7 @@ export function createGame({ scene, camera, world, fx }) {
           }
           pos.set(cx + nx * rr, c.y + ny * rr, c.z + nz * rr);
           game.events.cable = (game.events.cable || 0) + 1;
+          if (isHuman(b.shooter)) addShake(0.2);
           audio.ping();
           fx.burst(pos.clone(), [0xfff2a0, 0xff8a8a], 10, 2.4);
           if (isHuman(b.shooter)) ui.flash(tr('Câble ! ⚡'), 'small', 1);
@@ -790,6 +852,7 @@ export function createGame({ scene, camera, world, fx }) {
           }
           if (c.drone) c.drone.wobble = 1; // le drone encaisse et tangue
           game.events[c.kind || 'box'] = (game.events[c.kind || 'box'] || 0) + 1;
+          if (isHuman(b.shooter)) addShake(0.2);
           audio.thump();
           fx.burst(pos.clone(), [0xffffff, 0x9fd8ff], 12, 3);
           if (isHuman(b.shooter)) {
@@ -926,6 +989,7 @@ export function createGame({ scene, camera, world, fx }) {
     ui.startChallenge();
     ui.setChallengeHud(idx, c, 1);
     ui.setWind(game.wind);
+    world.setWindVisual(game.wind);
     ui.flash(tr('🎯 Défi {n} — {name}', { n: idx + 1, name: tr(c.name) }), 'round', 2);
     if (c.lucarne) ui.flash(tr('Objectif : LUCARNE (coins dorés) !'), 'small', 2.4);
     startChallengeShot();
@@ -1116,6 +1180,7 @@ export function createGame({ scene, camera, world, fx }) {
     g.wind = g.daily ? g.spec.wind
       : Math.round(g.spec.wind * diff().wind * 10) / 10;
     ui.setWind(g.wind);
+    world.setWindVisual(g.wind);
     // les rivales démarrent de part et d'autre du joueur
     g.rivals.forEach((r, k) => {
       r.rest.set(k === 0 ? -3.5 : 3.5, BALL_R, 1.5);
@@ -1283,7 +1348,7 @@ export function createGame({ scene, camera, world, fx }) {
     pos.z += b.vel.z * dt;
     b.vel.x += ax * dt;
     b.vel.y -= G * dt;
-    b.mesh.rotation.x -= (b.vel.length() / BALL_R) * dt * 0.35;
+    spinBall(b, dt);
 
     const moved = prev.distanceTo(pos);
     const n = Math.max(1, Math.min(6, Math.ceil(moved / 0.5)));
@@ -1311,12 +1376,16 @@ export function createGame({ scene, camera, world, fx }) {
       const f = (prev.z - gi.lineZ) / (prev.z - pos.z);
       const ix = prev.x + (pos.x - prev.x) * f;
       const iy = prev.y + (pos.y - prev.y) * f;
-      if (Math.abs(ix - gi.x) < GOAL_W / 2 - BALL_R * 0.35
+      if (hitWoodwork(b, ix - gi.x, iy, gi.roofY, gi.lineZ, b.isPlayerBall)) {
+        pos.z = gi.lineZ + BALL_R;
+      } else if (Math.abs(ix - gi.x) < GOAL_W / 2 - BALL_R * 0.35
         && iy > gi.roofY && iy < gi.roofY + GOAL_H - BALL_R * 0.25) {
         b.scored = true;
         audio.goal();
         fx.burst(new THREE.Vector3(ix, iy, gi.lineZ), [0xffffff, b.shooter.nation.trail, 0xffe08a], 44, 5);
         fx.shockwave(new THREE.Vector3(ix, iy, gi.lineZ + 0.1));
+        g.course.punchNet();
+        if (b.isPlayerBall) ui.flashScreen(false);
         if (b.isPlayerBall) {
           ui.flash(tr('BUT ⚽ !'), 'goal', 1.6);
           audio.cheer();
@@ -1585,6 +1654,29 @@ export function createGame({ scene, camera, world, fx }) {
     game.endInfo = null;
   }
 
+  // -------------------------------------------------------------- podium ---
+
+  // le champion du Tournoi monte sur la boîte : orbite caméra, confettis,
+  // rivaux de la finale sur les marches 2 et 3, puis l'écran de fin
+  function startPodium(payload) {
+    game.podiumPayload = payload;
+    game.podiumShown = false;
+    const { spots } = world.buildPodium();
+    const order = [game.playerIdx, 0, 2]; // champion, puis les finalistes
+    order.forEach((idx, k) => {
+      const s = game.shooters[idx];
+      const spot = spots[k];
+      s.group.position.set(spot.x, spot.topY, spot.z);
+      s.group.rotation.y = 0;
+      s.figure.rotation.x = 0;
+    });
+    for (const b of game.balls) b.mesh.visible = false;
+    ui.hide('#hud');
+    audio.cheer();
+    game.state = 'podium';
+    game.t = 0;
+  }
+
   // ------------------------------------------------------------- caméra ----
 
   function updateCamera(dt) {
@@ -1593,6 +1685,11 @@ export function createGame({ scene, camera, world, fx }) {
       const sway = Math.sin(performance.now() * 0.0002) * 2;
       wantPos = new THREE.Vector3(sway, 7.5, 16.5);
       wantLook = new THREE.Vector3(0, 1.5, -30);
+    } else if (game.state === 'podium') {
+      // tour d'honneur : la caméra orbite lentement autour du podium
+      const a = game.t * 0.42 + Math.PI * 0.15;
+      wantPos = new THREE.Vector3(Math.sin(a) * 8.5, 4.4, 5.5 + Math.cos(a) * 8.5);
+      wantLook = new THREE.Vector3(0, 1.9, 5.7);
     } else if (game.slowmo > 0 && game.goalCamPoint) {
       // ralenti de but : la caméra plonge vers la cage
       const p = game.goalCamPoint;
@@ -1614,6 +1711,18 @@ export function createGame({ scene, camera, world, fx }) {
       const px = aimShooter().homeX;
       wantPos = new THREE.Vector3(px * 0.55, 6.4, 13);
       wantLook = new THREE.Vector3(px * 0.25, 1.0, -20);
+      // bannière de manche : petit travelling depuis la cage vers le tireur
+      if (game.state === 'intro') {
+        const u = Math.min(1, game.t / 1.35);
+        const e = 1 - (1 - u) * (1 - u) * (1 - u);
+        const glz = world.goalLineZ();
+        wantPos.set(
+          -8 + px * 0.3 + (wantPos.x + 8 - px * 0.3) * e,
+          9 + (wantPos.y - 9) * e,
+          glz + 18 + (wantPos.z - glz - 18) * e,
+        );
+        wantLook.lerpVectors(new THREE.Vector3(0, TARGET_ROOF_Y + 1, glz), wantLook, e);
+      }
       const pb = game.balls[game.followIdx ?? game.playerIdx];
       if (game.state === 'flight' && pb && pb.state === 'flying') {
         wantLook.lerp(pb.mesh.position, 0.6);
@@ -1623,7 +1732,23 @@ export function createGame({ scene, camera, world, fx }) {
     game.camPos.lerp(wantPos, k);
     game.camLook.lerp(wantLook, k);
     camera.position.copy(game.camPos);
+    // secousses d'impact : offset haute fréquence amorti, appliqué après coup
+    if (game.camShake > 0.002) {
+      const tn = performance.now() * 0.001;
+      camera.position.x += Math.sin(tn * 47) * game.camShake * 0.32;
+      camera.position.y += Math.cos(tn * 53) * game.camShake * 0.26;
+      game.camShake *= Math.exp(-dt * 6.5);
+    } else {
+      game.camShake = 0;
+    }
     camera.lookAt(game.camLook);
+    // coup de zoom à la frappe (FOV), retour élastique
+    const targetFov = 58 + game.fovKick * 4.5;
+    if (Math.abs(camera.fov - targetFov) > 0.02) {
+      camera.fov = targetFov;
+      camera.updateProjectionMatrix();
+    }
+    game.fovKick *= Math.exp(-dt * 3.4);
   }
 
   // ------------------------------------------------------------ pointeur ---
@@ -1709,7 +1834,15 @@ export function createGame({ scene, camera, world, fx }) {
   function update(dt) {
     const t = performance.now() * 0.001;
     // ralenti cinématique après un but du joueur : la physique passe à 35 %
-    if (game.slowmo > 0) game.slowmo -= dt;
+    if (game.slowmo > 0) {
+      game.slowmo -= dt;
+      // pluie de confettis continue autour du point du but
+      if (game.goalCamPoint && Math.random() < dt * 9) {
+        fx.burst(game.goalCamPoint.clone().add(new THREE.Vector3(
+          (Math.random() - 0.5) * 3, 1 + Math.random() * 2, Math.random() * 2,
+        )), [0xffffff, 0xffe08a, 0x59f2ff], 5, 2.4);
+      }
+    }
     const sdt = game.slowmo > 0 ? dt * 0.35 : dt;
     for (const s of game.shooters) s.update(sdt, t);
     // en phase de visée, le badge du tireur actif laisse la vue dégagée
@@ -1864,6 +1997,23 @@ export function createGame({ scene, camera, world, fx }) {
           else golfEnd();
         }
         break;
+      case 'podium': {
+        game.t += dt;
+        // le champion jubile en boucle, les confettis pleuvent
+        const champ = playerShooter();
+        if (champ.celebrateT < 0) champ.celebrate();
+        if (Math.random() < dt * 6) {
+          fx.burst(new THREE.Vector3((Math.random() - 0.5) * 8, 6 + Math.random() * 3,
+            4 + Math.random() * 4), [0xffd75e, 0xffffff, 0x59f2ff, 0xff6ad5], 6, 2.6);
+        }
+        if (!game.podiumShown && game.t > 5.2) {
+          game.podiumShown = true;
+          const p = game.podiumPayload;
+          const meMap = { [game.playerIdx]: tr(' (vous)') };
+          ui.showEnd(p.title, p.cls, game.shooters, meMap, p.result);
+        }
+        break;
+      }
       case 'over':
         game.t += dt;
         if (game.t > 0.9 && game.endInfo) {
@@ -1894,6 +2044,11 @@ export function createGame({ scene, camera, world, fx }) {
             title = tv.title;
             cls = tv.cls;
             result = { ...tv.result, playerScore: playerShooter().score, nation: result.nation };
+            if (tv.result.champion) {
+              // tour d'honneur : podium, confettis, la coupe — puis l'écran
+              startPodium({ title, cls, result });
+              break;
+            }
           }
           // victoire de duel sans perdre une planche : succès « Sans trembler »
           if (cls === 'win' && !game.locals && playerShooter().alive
@@ -1921,6 +2076,7 @@ export function createGame({ scene, camera, world, fx }) {
     update, pointerDown, pointerMove, pointerUp, pointerCancel,
     startMatch, startMatch2, startGolf, startTournament, tournamentNext, toTitle, setClub,
     startChallenge, challengeReplay,
+    currentWind() { return game.mode === 'golf' && game.golf ? game.golf.wind : game.wind; },
     hasTournamentNext() { return !!(game.tournament && game.tournament.pendingNext); },
     hasChallengePending() { return !!(game.challenge && game.challenge.done); },
     setDifficulty(d) { game.difficulty = d === 'hard' ? 'hard' : 'normal'; },

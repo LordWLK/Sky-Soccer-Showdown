@@ -14,6 +14,46 @@ export function createFx(scene) {
   const confettiGeo = new THREE.PlaneGeometry(0.16, 0.24);
   const ringGeo = new THREE.RingGeometry(0.55, 0.72, 40);
 
+  // ---- ambiance : poussières dorées du crépuscule, feuilles au vent -------
+  let dusk = 0;
+  let windAmb = 0;
+  const motes = [];
+  const leaves = [];
+  const AMB_BOX = { x: 26, yLo: 0.5, yHi: 14, zLo: -66, zHi: 14 };
+  {
+    for (let i = 0; i < 34; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: dotTex, color: 0xffe2a0, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }));
+      const s = 0.16 + Math.random() * 0.2;
+      sp.scale.set(s, s, 1);
+      sp.position.set(
+        (Math.random() * 2 - 1) * AMB_BOX.x,
+        AMB_BOX.yLo + Math.random() * (AMB_BOX.yHi - AMB_BOX.yLo),
+        AMB_BOX.zLo + Math.random() * (AMB_BOX.zHi - AMB_BOX.zLo),
+      );
+      scene.add(sp);
+      motes.push({ sp, phase: Math.random() * 9, base: 0.2 + Math.random() * 0.3 });
+    }
+    const leafGeo = new THREE.PlaneGeometry(0.3, 0.2);
+    const leafCols = [0xc9762c, 0x9aa04a, 0xd8d3c2, 0xb4552e];
+    for (let i = 0; i < 12; i++) {
+      const m = new THREE.Mesh(leafGeo, new THREE.MeshBasicMaterial({
+        color: leafCols[i % leafCols.length], side: THREE.DoubleSide,
+        transparent: true, opacity: 0,
+      }));
+      m.position.set((Math.random() * 2 - 1) * 24, 2 + Math.random() * 10, -8 - Math.random() * 40);
+      scene.add(m);
+      leaves.push({
+        m,
+        vy: -0.5 - Math.random() * 0.5,
+        spin: new THREE.Vector3(Math.random() * 4, Math.random() * 4, Math.random() * 4),
+        wob: Math.random() * 9,
+      });
+    }
+  }
+
   function trailMat(color) {
     if (!trailMats.has(color)) {
       trailMats.set(color, new THREE.SpriteMaterial({
@@ -51,6 +91,12 @@ export function createFx(scene) {
       });
     },
 
+    // heure du jour et vent courant : pilotent poussières et feuilles
+    ambience(tod, wind) {
+      dusk = 4 * tod * (1 - tod); // maximal au crépuscule
+      windAmb = wind || 0;
+    },
+
     // onde de choc lumineuse dans le plan du but
     shockwave(pos, color = 0xfff2c0) {
       const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({
@@ -83,6 +129,32 @@ export function createFx(scene) {
     },
 
     update(dt) {
+      // poussières : dérive lente + poussée du vent, halo au crépuscule
+      const now = performance.now() * 0.001;
+      for (const p of motes) {
+        p.sp.position.x += (Math.sin(now * 0.5 + p.phase) * 0.12 + windAmb * 0.5) * dt;
+        p.sp.position.y += Math.cos(now * 0.4 + p.phase * 2) * 0.08 * dt;
+        if (p.sp.position.x > AMB_BOX.x) p.sp.position.x = -AMB_BOX.x;
+        if (p.sp.position.x < -AMB_BOX.x) p.sp.position.x = AMB_BOX.x;
+        p.sp.material.opacity = dusk * p.base * (0.6 + 0.4 * Math.sin(now * 0.8 + p.phase));
+      }
+      // feuilles : chute tournoyante, portées par le vent RÉEL de la manche
+      const wStr = Math.min(1, Math.abs(windAmb) * 1.3);
+      for (const L of leaves) {
+        L.m.position.x += (windAmb * 2.4 + Math.sin(now * 2 + L.wob) * 0.5) * dt;
+        L.m.position.y += (L.vy + Math.sin(now * 3 + L.wob * 2) * 0.4) * dt;
+        L.m.rotation.x += L.spin.x * dt;
+        L.m.rotation.y += L.spin.y * dt;
+        L.m.rotation.z += L.spin.z * dt;
+        if (L.m.position.y < -6 || Math.abs(L.m.position.x) > 30) {
+          L.m.position.set(
+            windAmb >= 0 ? -28 : 28,
+            6 + Math.random() * 9,
+            -6 - Math.random() * 44,
+          );
+        }
+        L.m.material.opacity = wStr * 0.85;
+      }
       for (let i = trails.length - 1; i >= 0; i--) {
         const p = trails[i];
         p.life += dt;

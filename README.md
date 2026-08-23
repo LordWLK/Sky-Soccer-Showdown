@@ -105,6 +105,13 @@ simulation numérique — détails dans [GAME_DESIGN.md](GAME_DESIGN.md), §4.
   toits spéciaux, mode Défis (20 niveaux étoilés), série du jour + partage
   emoji, statistiques & succès, musique d'ambiance, version anglaise, et
   une direction artistique rehaussée (rendu ACES, ciel étoilé et lune,
-  néons, projecteurs, personnages expressifs)
+  néons, projecteurs, personnages expressifs), couronnée d'une **mise en
+  scène cinéma** : caméra vivante (travelling d'intro, secousse et coup de
+  zoom à la frappe), poteaux et barre sonores, filet qui se gonfle, flash
+  d'écran et pluie de confettis sur les buts, stade habillé (panneaux
+  publicitaires, drapeaux de corner dans le vent, lignes luminescentes la
+  nuit), poussières dorées du crépuscule et feuilles portées par le vent,
+  ville étagée dans la brume, ballon cousu qui roule dans l'axe de sa
+  trajectoire, et **podium de champion en 3D** au bout du Tournoi
 - **v4 — idées** : duel à 2 en ligne, classement mondial du Parcours du
   jour, replays de buts, nouveaux décors de ville

@@ -233,6 +233,10 @@ sort** parmi les autres nations à chaque partie.
 - Posée derrière et au-dessus des tireurs, orientée vers la cage : le vide et la
   cible se lisent d'un coup d'œil.
 - Léger suivi du ballon du joueur pendant le vol, puis retour en position.
+- **Mise en scène** (v3) : travelling d'intro du Duel (la caméra glisse du
+  but adverse vers la position de jeu), **coup de zoom** (FOV) à la frappe,
+  **secousses amorties** sur les impacts (poteau, obstacles, parade), orbite
+  lente autour du podium de Tournoi.
 
 ### 5.3 Interface
 
@@ -329,6 +333,19 @@ sort** parmi les autres nations à chaque partie.
     projecteurs de stade sur les toits ; visages expressifs, célébrations
     variées, plongeon du gardien ganté ; ballon à pentagones cousus ;
     onde de choc lumineuse sur les buts.
+  - **Mise en scène cinéma** : caméra vivante (travelling d'intro du Duel,
+    coup de zoom à la frappe, secousses amorties sur les impacts) ; **poteau
+    et barre sonores** (clonc métallique, bande dédiée sans voler aucun
+    but) ; **filet qui se gonfle** à l'impact ; ralenti de but enrichi d'un
+    **flash d'écran** (doré en lucarne) et d'une pluie de confettis ; stade
+    habillé (6 panneaux publicitaires rétroéclairés, 4 drapeaux de corner
+    animés par le vent réel, lignes du terrain luminescentes la nuit) ;
+    ambiance de l'air (poussières dorées au crépuscule, feuilles portées
+    par le vent) ; profondeur de ville (3 plans de brume étagés, éclats de
+    soleil sur les façades, ombres 2048) ; ballon en matière brillante qui
+    **roule dans l'axe de sa trajectoire** ; **podium 3D de champion** au
+    bout du Tournoi (marches or/argent/bronze, coupe scintillante, orbite
+    de caméra, confettis) avant l'écran de fin.
 - **v4 — idées** : duel à 2 en ligne, classement mondial du Parcours du
   jour, replays de buts, décors de ville alternatifs.
 

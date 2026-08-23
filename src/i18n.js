@@ -88,6 +88,8 @@ const EN = {
   'À toi, {n} !': 'Your turn, {n}!',
   '⚠️ Obstacles entre les toits !': '⚠️ Obstacles between the rooftops!',
   'Câble ! ⚡': 'Cable! ⚡',
+  'Le poteau !': 'Off the post!',
+  'La barre !': 'Off the bar!',
   'Drone percuté ! 🚁': 'Drone hit! 🚁',
   'La grue ! 🏗️': 'The crane! 🏗️',
   'Bâche élastique ! 🤸': 'Bouncy tarp! 🤸',

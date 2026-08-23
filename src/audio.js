@@ -199,6 +199,13 @@ export const audio = {
     tone({ type: 'sawtooth', from: 220, to: 90, dur: 0.3, vol: 0.2 });
     vibrate(18);
   },
+  // clonc du poteau ou de la barre : résonance métallique brève
+  post() {
+    tone({ type: 'triangle', from: 310, to: 190, dur: 0.16, vol: 0.5 });
+    tone({ type: 'sine', from: 620, to: 590, dur: 0.3, vol: 0.16, delay: 0.01 });
+    noise({ dur: 0.04, vol: 0.35, freq: 1800 });
+    vibrate(30);
+  },
   // claquement métallique d'un câble percuté
   ping() {
     tone({ type: 'square', from: 1700, to: 800, dur: 0.12, vol: 0.28 });

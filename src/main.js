@@ -279,6 +279,8 @@ renderer.setAnimationLoop(() => {
   try {
     game.update(dt);
     world.update(dt, elapsed);
+    // poussières et feuilles suivent l'heure du jour et le vent réel
+    fx.ambience(world.timeOfDay(), game.currentWind());
     fx.update(dt);
   } catch (err) {
     console.error(err);

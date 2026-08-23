@@ -152,6 +152,15 @@ export const ui = {
     this.show('#hud');
   },
 
+  // éclair d'écran très bref sur les buts du joueur (doré en lucarne)
+  flashScreen(strong) {
+    const el = $('#flash');
+    el.classList.toggle('gold', !!strong);
+    el.classList.remove('on');
+    void el.offsetWidth; // relance l'animation CSS
+    el.classList.add('on');
+  },
+
   // toasts des succès nouvellement débloqués (fin de partie)
   toastAchievements() {
     checkAchievements().forEach((a, i) => {
