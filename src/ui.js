@@ -4,8 +4,9 @@ import { flagBadgeDataURL } from './assets.js';
 import {
   recordDuel, recordGolf, recordTournament, recordChallenge, getChallenges,
   recordDailyRun, getDailyHist, getDailyStreak, getStats, getAll,
-  checkAchievements, getAchievements, ACHIEVEMENTS,
+  checkAchievements, getAchievements, ACHIEVEMENTS, recordSurvival, bumpStats,
 } from './records.js';
+import { audio } from './audio.js';
 import { CHALLENGES } from './challenges.js';
 import { t, tHole } from './i18n.js';
 
@@ -152,6 +153,55 @@ export const ui = {
     this.show('#hud');
   },
 
+  // Survie : seul face à la cage — pas de puces d'équipes, la série au HUD
+  startSurvival() {
+    document.querySelector('#hud').classList.remove('golf');
+    this.hide('#chips');
+    this.hide('#strokes');
+    this.hide('#club');
+    this.hide('#title-screen');
+    this.hide('#end-screen');
+    this.show('#hud');
+  },
+
+  setSurvival(streak, shot) {
+    $('#round').textContent = t('🔥 Série : {n}', { n: streak });
+    if (shot) $('#round').textContent += ` · ${t('Tir {n}', { n: shot })}`;
+  },
+
+  // écran de fin de Survie : la série, le record local, le partage
+  showSurvivalEnd(streak, nation, stats) {
+    const { best, isNew } = recordSurvival(streak);
+    bumpStats({ survivalRuns: 1 });
+    audio[isNew && streak > 2 ? 'win' : 'lose']();
+    $('#end-title').textContent = isNew
+      ? t('🔥 RECORD ! Série de {n}', { n: streak })
+      : t('💥 SÉRIE TERMINÉE — {n}', { n: streak });
+    $('#end-title').className = isNew ? 'win' : 'lose';
+    const rows = $('#end-rows');
+    rows.innerHTML = '';
+    const line1 = document.createElement('div');
+    line1.className = 'end-note';
+    line1.textContent = t('Meilleure série : {n} buts', { n: best });
+    rows.appendChild(line1);
+    if (stats && stats.shots > 0) {
+      const line2 = document.createElement('div');
+      line2.className = 'end-note';
+      line2.textContent = t('🎯 Précision {p} % · {l} lucarnes · plus longue frappe {d} m', {
+        p: Math.round((stats.goals / stats.shots) * 100), l: stats.lucarnes, d: stats.longest,
+      });
+      rows.appendChild(line2);
+    }
+    this.shareText = t('🔥 Sky Soccer Showdown — série de {n} buts d\'affilée en Survie avec {nat} ! {url}', {
+      n: streak, nat: t(nation.name), url: location.href,
+    });
+    $('#replay-btn').textContent = t('↻ REJOUER');
+    $('#menu-btn').classList.add('hidden');
+    this.hide('#hud');
+    this.toastAchievements();
+    this.show('#end-screen');
+  },
+
   // éclair d'écran très bref sur les buts du joueur (doré en lucarne)
   flashScreen(strong) {
     const el = $('#flash');
@@ -204,6 +254,7 @@ export const ui = {
       ['🎳 Trous en un', stats.holeInOne || 0],
       ['🌟 Étoiles des Défis', `${Object.values(getChallenges()).reduce((a, s) => a + s, 0)} / ${CHALLENGES.length * 3}`],
       ['🔥 Série du jour', `${streak.current} (record ${streak.best})`],
+      ['⚡ Meilleure série en Survie', all.survivalBest || 0],
     ];
     $('#stats-rows').innerHTML = rows.map(([k, v]) =>
       `<div class="stat-row"><span>${t(k)}</span><b>${v}</b></div>`).join('');
@@ -458,7 +509,7 @@ export const ui = {
     }
   },
 
-  showEnd(title, cls, shooters, meMap = {}, result = null) {
+  showEnd(title, cls, shooters, meMap = {}, result = null, stats = null) {
     $('#end-title').textContent = title;
     $('#end-title').className = cls;
     const rows = $('#end-rows');
@@ -513,6 +564,17 @@ export const ui = {
       rows.appendChild(line);
     } else {
       this.shareText = t('⚽ Sky Soccer Showdown — {title} {url}', { title, url: location.href });
+    }
+    // stats du match : précision, lucarnes, plus longue frappe au but
+    if (stats && stats.shots > 0) {
+      const line = document.createElement('div');
+      line.className = 'end-note';
+      line.textContent = t('🎯 Précision {p} % · {l} lucarnes · plus longue frappe {d} m', {
+        p: Math.round((stats.goals / stats.shots) * 100),
+        l: stats.lucarnes,
+        d: stats.longest,
+      });
+      rows.appendChild(line);
     }
     // au fil d'un tournoi, REJOUER devient CONTINUER (match suivant)
     $('#replay-btn').textContent = t(result && result.next ? '➜ CONTINUER' : '↻ REJOUER');

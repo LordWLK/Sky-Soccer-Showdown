@@ -415,6 +415,10 @@ export function buildWorld(scene) {
     // le filet du Duel encaisse le but ; le vent anime drapeaux et débris
     punchDuelNet() { punchGoalNet(duelGoal); },
     setWindVisual(w) { state.windVisual = w || 0; },
+    // météo d'ambiance (aucun effet physique) : le brouillard se resserre,
+    // la brume s'épaissit — les particules sont gérées par fx
+    setWeather(w) { state.weather = w || 'clear'; },
+    weather() { return state.weather || 'clear'; },
     timeOfDay() { return state.tod; },
     // podium de champion : trois marches, la coupe, une étoile qui pulse
     buildPodium() {
@@ -568,6 +572,21 @@ export function buildWorld(scene) {
         for (const a of ads) a.color.setRGB(0.75 + k * 0.35, 0.75 + k * 0.35, 0.75 + k * 0.35);
         linesGlow.material.opacity = k * 0.4;
         for (const hzm of hazes) hzm.color.copy(scene.fog.color);
+      }
+      // météo : le brouillard se resserre (pluie/neige) ou avale la ville
+      // (brume) — lissé pour des transitions douces, sans toucher au gameplay
+      {
+        const [wNear, wFar] = ({
+          rain: [52, 210], snow: [56, 230], mist: [26, 118],
+        })[state.weather] || [70, 300];
+        const kw = Math.min(1, dt * 0.7);
+        scene.fog.near += (wNear - scene.fog.near) * kw;
+        scene.fog.far += (wFar - scene.fog.far) * kw;
+        const boost = state.weather === 'mist' ? 2.1 : state.weather === 'clear' ? 0 : 0.7;
+        for (const hzm of hazes) {
+          if (hzm.userData.baseOp === undefined) hzm.userData.baseOp = hzm.opacity;
+          hzm.opacity += (hzm.userData.baseOp * (1 + boost) - hzm.opacity) * kw;
+        }
       }
       // feux d'antennes et néons : vie nocturne animée en continu
       const nk = state.tod;

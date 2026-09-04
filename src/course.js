@@ -22,6 +22,14 @@ export function dateSeed(d = new Date()) {
     * 2654435761) >>> 0;
 }
 
+// météo du parcours, seedée à part (le tirage des trous reste identique) :
+// même ciel pour tout le monde au Parcours du jour — ambiance pure, aucun
+// effet sur la physique
+export function weatherForSeed(seed) {
+  const r = mulberry32((seed ^ 0x9e3779b9) >>> 0)();
+  return r < 0.58 ? 'clear' : r < 0.78 ? 'rain' : r < 0.9 ? 'snow' : 'mist';
+}
+
 export function generateCourse(seed, holeCount) {
   const rng = mulberry32(seed >>> 0);
   const holes = [];

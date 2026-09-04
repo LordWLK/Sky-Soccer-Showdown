@@ -133,6 +133,13 @@ export const ICONS = {
     ${ball(24, 26, 5)}
     <path d="M 37 5 l 1.4 3.2 l 3.4 0.4 l -2.5 2.4 l 0.7 3.4 l -3 -1.7 l -3 1.7 l 0.7 -3.4 l -2.5 -2.4 l 3.4 -0.4 Z" fill="${P.gold}"/>`),
 
+  // 🔥 Survie : l'éclair de la série qui traverse le ballon
+  survie: svg(`
+    <circle cx="24" cy="27" r="15" fill="${P.night2}"/>
+    ${ball(24, 27, 11)}
+    <path d="M 27 4 L 15 26 h 7.5 L 19 44 L 34 20 h -8 L 31 4 Z"
+      fill="${P.gold}" stroke="${P.goldDark}" stroke-width="1.6" stroke-linejoin="round"/>`),
+
   // ⚙️ réglages : engrenage
   settings: svg(`
     <path d="M 24 6 l 2.6 4.6 a 14 14 0 0 1 4.6 1.9 l 5 -1.6 l 3.4 5.8 l -3.7 3.8 a 14 14 0 0 1 0 5 l 3.7 3.8 l -3.4 5.8 l -5 -1.6 a 14 14 0 0 1 -4.6 1.9 l -2.6 4.6 l -6.7 0 l -1.3 -5.2 a 14 14 0 0 1 -4.3 -2.5 l -5.2 1.2 l -3.4 -5.8 l 4 -3.5 a 14 14 0 0 1 0 -4.6 l -4 -3.5 l 3.4 -5.8 l 5.2 1.2 a 14 14 0 0 1 4.3 -2.5 l 1.3 -5.2 Z"

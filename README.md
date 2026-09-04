@@ -27,7 +27,7 @@ Fonctionne aussi hors-ligne.
 ## 🎮 Règles & contrôles
 
 - **Choisissez votre nation** (8 équipes), votre **défi** et votre
-  **difficulté** (Normal / 🔥 Difficile), puis **JOUER**. Six défis :
+  **difficulté** (Normal / 🔥 Difficile), puis **JOUER**. Huit défis :
   - ⚔️ **Duel** — 8 manches contre 2 rivaux, le plus précis reste debout ;
   - 👥 **Duel à 2** — deux joueurs sur le même écran + une IA ;
   - 🏆 **Tournoi** — quart, demie, finale : 3 duels de 5 manches contre
@@ -40,7 +40,10 @@ Fonctionne aussi hors-ligne.
     **série de jours consécutifs** et **partage en grille d'émojis** façon
     casse-tête quotidien ;
   - 🎯 **Défis** — 20 tirs d'exception étoilés (1ᵉʳ tir = ⭐⭐⭐) : vent,
-    gardien, lucarne imposée, câbles, drones, grue…
+    gardien, lucarne imposée, câbles, drones, grue… ;
+  - ⚡ **Survie** — un tir, un but, on continue : la cage recule, le vent
+    forcit, gardien puis obstacles s'invitent — le premier raté met fin à
+    la série (record local + partage).
 - **Tir brossé** : glissez en arc de cercle pour donner de l'effet au ballon
   et contourner gardien et obstacles — la courbe apparaît dans l'aperçu.
 - Dès les manches tardives du Duel, des **obstacles aériens** (câbles,
@@ -120,5 +123,17 @@ simulation numérique — détails dans [GAME_DESIGN.md](GAME_DESIGN.md), §4.
   visé, regard qui suit le ballon, visages à humeurs, **célébration
   signature par nation** (glissade, saut-pirouette, déhanché…), rivaux qui
   réagissent, gardien qui s'échauffe, ombre de contact sous chaque joueur
-- **v4 — idées** : duel à 2 en ligne, classement mondial du Parcours du
-  jour, replays de buts, nouveaux décors de ville
+- **v4 — le spectacle** ✅ *(vous êtes ici)* : **replay cinéma** des beaux
+  buts (lucarne, gros brossé, frappe lointaine — revu au ralenti de
+  derrière la cage, un toucher pour passer), **présentation d'avant-match**
+  (la caméra passe face au trio, votre joueur fait sa célébration
+  signature), **ambiance sonore de stade** (rumeur de foule qui suit la
+  tension, « ohhh » déçu sur poteau et parade), **météo d'ambiance**
+  (pluie, neige ou brume — tirée au sort en Duel, seedée au Parcours :
+  le même ciel pour tous au Parcours du jour, aucun effet sur la
+  physique), **mode Survie** (un tir, un but, on continue — la cage
+  recule, le vent forcit, gardien et obstacles arrivent, record local et
+  partage), **punchlines de commentaire** contextuelles et **stats de fin
+  de match** (précision, lucarnes, plus longue frappe)
+- **v5 — idées** : duel à 2 en ligne, classement mondial du Parcours du
+  jour, nouveaux décors de ville

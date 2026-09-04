@@ -8,7 +8,7 @@ import { audio } from './audio.js';
 import {
   TARGET_ROOF_Y, GOAL_W, GOAL_H, TARGET_HALF_W, buildCourse,
 } from './world.js';
-import { generateCourse, dateSeed } from './course.js';
+import { generateCourse, dateSeed, weatherForSeed } from './course.js';
 import { CHALLENGES } from './challenges.js';
 import { bumpStats } from './records.js';
 import { t as tr, tHole } from './i18n.js';
@@ -155,6 +155,12 @@ export function createGame({ scene, camera, world, fx }) {
     camShake: 0,   // secousses d'impact, amorties exponentiellement
     fovKick: 0,    // coup de zoom au départ du ballon
     irisNext: false, // transition iris vers le trou suivant en cours
+    weather: 'clear', // météo d'ambiance (aucun effet physique)
+    survival: null,   // mode Survie : { streak }
+    matchStats: null, // stats du match courant { shots, goals, lucarnes, longest }
+    pendingReplay: null, // beau but à rejouer après la manche
+    replay: null,        // replay en cours { path, t, savedBallPos }
+    introShow: false,    // présentation d'avant-match (manche 1)
   };
 
   // petite secousse de caméra (frappe, impact, arrêt) — plafond doux
@@ -176,11 +182,45 @@ export function createGame({ scene, camera, world, fx }) {
   const aimIdx = () => (game.locals ? game.locals[game.activeLocal] : game.playerIdx);
   const aimShooter = () => game.shooters[aimIdx()];
 
+  // ---- météo d'ambiance : tirée au sort en Duel, seedée au Parcours -------
+  function applyWeather(w) {
+    game.weather = w;
+    world.setWeather(w);
+    fx.setWeather(w);
+    audio.setRain(w === 'rain' ? 0.07 : 0);
+    if (w !== 'clear') {
+      ui.flash(tr(w === 'rain' ? '🌧️ Pluie sur les toits' : w === 'snow'
+        ? '❄️ Neige sur la ville' : '🌫️ Brume épaisse'), 'small', 2.2);
+    }
+  }
+  function rollWeather() {
+    const r = Math.random();
+    applyWeather(r < 0.62 ? 'clear' : r < 0.78 ? 'rain' : r < 0.9 ? 'snow' : 'mist');
+  }
+
+  // punchlines de commentaire : une voix par type d'action
+  const PUNCH = {
+    lucarne: ['LUCARNE ! +2 🎯', 'EN PLEINE LUCARNE ! +2', 'Sous la barre, +2 !'],
+    curl: ['Quelle courbe ! ⚽', 'Enroulé parfait ! ⚽', 'Le ballon a fait le tour !'],
+    keeper: ['Le gardien n\'a rien vu ! ⚽', 'Imparable ! ⚽', 'BUT ⚽ !'],
+    goal: ['BUT ⚽ !', 'Au fond du filet !', 'Frappe chirurgicale ! ⚽', 'Plein centre ! ⚽'],
+    save: ['Arrêt du gardien !', 'Quelle parade ! 🧤', 'Sorti par le gardien !'],
+    miss: ['Raté…', 'À côté !', 'Trop enlevé…'],
+  };
+  const punch = (kind) => tr(PUNCH[kind][(Math.random() * PUNCH[kind].length) | 0]);
+
+  function resetMatchStats() {
+    game.matchStats = { shots: 0, goals: 0, lucarnes: 0, longest: 0 };
+  }
+
   function rollWind() {
     if (game.round < 2) return 0;
     // trajectoires plus tendues = vols plus courts : vent renforcé d'autant ;
-    // gradué sur la longueur du match (compressé sur les 5 manches du Tournoi)
-    const prog = (game.round - 1) / Math.max(1, game.roundsMax - 1);
+    // gradué sur la longueur du match (compressé sur les 5 manches du Tournoi ;
+    // la Survie atteint sa pleine force en une dizaine de tirs)
+    const prog = game.survival
+      ? Math.min(1, (game.round - 1) / 10)
+      : (game.round - 1) / Math.max(1, game.roundsMax - 1);
     const level = (prog < 0.4 ? 0.7 : prog < 0.7 ? 1.05 : 1.45) * diff().wind;
     const mag = level * (0.4 + Math.random() * 0.6);
     return Math.round(mag * (Math.random() < 0.5 ? -1 : 1) * 10) / 10;
@@ -220,6 +260,12 @@ export function createGame({ scene, camera, world, fx }) {
     game.slowmo = 0;
     game.goalCamPoint = null;
     game.irisNext = false;
+    game.survival = null;
+    game.pendingReplay = null;
+    game.replay = null;
+    game.introShow = false;
+    applyWeather('clear');
+    audio.setCrowd(0);
     world.setDuelTargetVisible(true);
     world.setDuelObstacles([]);
     world.setKeeper(false);
@@ -291,6 +337,9 @@ export function createGame({ scene, camera, world, fx }) {
     game.round = 1;
     game.hintShown = false;
     game.windAnnounced = false;
+    resetMatchStats();
+    rollWeather();
+    game.introShow = true; // présentation d'avant-match à la manche 1
     ui.startMatch();
     ui.updateChips(game.shooters);
     startRound();
@@ -320,8 +369,36 @@ export function createGame({ scene, camera, world, fx }) {
     game.round = 1;
     game.hintShown = false;
     game.windAnnounced = false;
+    resetMatchStats();
+    rollWeather();
+    game.introShow = true;
     ui.startMatch();
     ui.updateChips(game.shooters);
+    startRound();
+  }
+
+  // Mode Survie : seul sur le toit, un tir par manche — chaque but prolonge
+  // la série (lucarne : +2), le premier raté y met fin. La cage recule, le
+  // vent forcit, gardien puis obstacles s'invitent, la nuit tombe.
+  function startSurvival(teamIdx) {
+    clearMatch();
+    game.tournament = null;
+    game.challenge = null;
+    game.mode = 'duel';
+    game.survival = { streak: 0 };
+    setMatchFormat(999, 2.2);
+    game.roster = [NATIONS[teamIdx]];
+    game.playerIdx = 0;
+    const s = new Shooter(scene, NATIONS[teamIdx], 0, true);
+    game.shooters = [s];
+    game.balls = [makeBall(s)];
+    game.round = 1;
+    game.hintShown = false;
+    game.windAnnounced = false;
+    resetMatchStats();
+    rollWeather();
+    game.introShow = true;
+    ui.startSurvival();
     startRound();
   }
 
@@ -370,7 +447,8 @@ export function createGame({ scene, camera, world, fx }) {
       game.obsAnnounced = true;
       ui.flash(tr('⚠️ Obstacles entre les toits !'), 'small', 2.4);
     }
-    world.setDayNight(Math.min(1, (game.round - 1) / Math.max(1, game.roundsMax - 1)));
+    world.setDayNight(Math.min(1, (game.round - 1)
+      / (game.survival ? 9 : Math.max(1, game.roundsMax - 1))));
     // en finale de Tournoi, le gardien monte dès la manche 3 quoi qu'il arrive
     const keeperFrom = game.tournament && game.tournament.stage === 2
       ? Math.min(3, diff().keeperFrom) : diff().keeperFrom;
@@ -381,11 +459,16 @@ export function createGame({ scene, camera, world, fx }) {
       ui.flash(tr('Un gardien monte sur le toit ! 🧤'), 'small', 2.3);
       ui.flash(tr('Astuce : glissez en arc de cercle pour brosser le tir 🌀'), 'small', 3);
     }
-    ui.setRound(game.round, game.roundsMax, game.round > game.roundsMax,
-      game.tournament ? TOURNEY_SHORT[game.tournament.stage] : null);
+    if (game.survival) ui.setSurvival(game.survival.streak, game.round);
+    else {
+      ui.setRound(game.round, game.roundsMax, game.round > game.roundsMax,
+        game.tournament ? TOURNEY_SHORT[game.tournament.stage] : null);
+    }
     ui.setWind(game.wind);
     world.setWindVisual(game.wind);
-    ui.flash(game.round > game.roundsMax ? tr('⚡ Mort subite !') : tr('Manche {n}', { n: game.round }), 'round', 1.4);
+    ui.flash(game.survival ? tr('Tir n°{n}', { n: game.round })
+      : game.round > game.roundsMax ? tr('⚡ Mort subite !')
+        : tr('Manche {n}', { n: game.round }), 'round', 1.4);
     if (game.wind && !game.windAnnounced) {
       game.windAnnounced = true;
       ui.flash(tr('Le vent se lève… compensez !'), 'small', 2.2);
@@ -399,6 +482,14 @@ export function createGame({ scene, camera, world, fx }) {
       b.launchAt = -1;
       b.mesh.visible = b.shooter.alive;
       if (b.shooter.alive) b.mesh.position.copy(b.shooter.ballStart(BALL_R));
+    }
+    // présentation d'avant-match (manche 1) : la caméra passe face au trio,
+    // vos couleurs jouent leur célébration signature, les rivaux saluent
+    if (game.introShow) {
+      for (const s of game.shooters) {
+        if (isHuman(s)) s.celebrate();
+        else s.react('wave');
+      }
     }
   }
 
@@ -437,6 +528,7 @@ export function createGame({ scene, camera, world, fx }) {
     b.state = 'wait';
     b.resolved = false;
     b.t = 0;
+    b.path = []; // trajectoire enregistrée (replay des beaux buts)
   }
 
   // Aide à la visée : si le tir frôle la cage (à ~40 cm près), on le rentre.
@@ -466,6 +558,7 @@ export function createGame({ scene, camera, world, fx }) {
   function playerShoot() {
     ui.hint(null);
     hidePreview();
+    if (game.matchStats) game.matchStats.shots += 1;
     const idx = aimIdx();
     const start = game.shooters[idx].ballStart(BALL_R);
     const curl = game.aimCurl * CURL_ACC;
@@ -668,6 +761,10 @@ export function createGame({ scene, camera, world, fx }) {
     b.vel.x += ax * dt;
     b.vel.y -= G * dt;
     spinBall(b, dt);
+    // la trajectoire du joueur est mémorisée : un beau but sera rejoué
+    if (b.path && isHuman(b.shooter) && b.path.length < 460) {
+      b.path.push({ p: pos0.clone(), t: b.t });
+    }
 
     if (b.state === 'flying') {
       // émission le long du segment parcouru : pas de trous même à bas FPS
@@ -707,7 +804,10 @@ export function createGame({ scene, camera, world, fx }) {
         world.keeperDive(Math.sign(ix - world.keeperX()) || 1);
         if (mine) addShake(0.12);
         audio.save();
-        if (mine) ui.flash(tr('Arrêt du gardien !'), 'small', 1.3);
+        if (mine) {
+          audio.ohh(); // les tribunes retiennent leur souffle
+          ui.flash(punch('save'), 'small', 1.3);
+        }
       } else if (Math.abs(ix) < GOAL_W / 2 - BALL_R * 0.35
         && iy > TARGET_ROOF_Y && iy < TARGET_ROOF_Y + GOAL_H - BALL_R * 0.25) {
         b.scored = true;
@@ -723,9 +823,28 @@ export function createGame({ scene, camera, world, fx }) {
         world.punchDuelNet();
         if (mine) ui.flashScreen(lucarne);
         if (mine) {
-          ui.flash(tr(lucarne ? 'LUCARNE ! +2 🎯' : 'BUT ⚽ !'), 'goal', lucarne ? 1.9 : 1.5);
+          // le commentaire colle à l'action : lucarne, brossé, gardien battu…
+          const kind = lucarne ? 'lucarne'
+            : Math.abs(b.curl || 0) >= 1.6 ? 'curl'
+              : world.keeperActive() ? 'keeper' : 'goal';
+          ui.flash(punch(kind), 'goal', lucarne ? 1.9 : 1.5);
           game.slowmo = 0.85;
           game.goalCamPoint = new THREE.Vector3(ix, iy, glz);
+          if (game.matchStats) {
+            game.matchStats.goals += 1;
+            if (lucarne) game.matchStats.lucarnes += 1;
+            game.matchStats.longest = Math.max(game.matchStats.longest,
+              Math.round(distanceForRound(game.round)));
+          }
+          // un but d'exception mérite son replay : lucarne, gros brossé
+          // ou frappe de très loin — jamais en Défi
+          if (!game.challenge && b.path && b.path.length > 6
+            && (lucarne || Math.abs(b.curl || 0) >= 1.4 || distanceForRound(game.round) >= 46)) {
+            game.pendingReplay = {
+              path: b.path, ballIdx: game.balls.indexOf(b),
+              impact: new THREE.Vector3(ix, iy, glz),
+            };
+          }
         } else {
           ui.flash(tr(lucarne ? 'Lucarne — {n}' : 'But — {n}', { n: tr(b.shooter.nation.name) }), 'small', 1.1);
         }
@@ -794,6 +913,7 @@ export function createGame({ scene, camera, world, fx }) {
     audio.post();
     if (mine) {
       addShake(0.2);
+      audio.ohh(); // toute la tribune y a cru
       ui.flash(tr(inBarBand ? 'La barre !' : 'Le poteau !'), 'small', 1.2);
     }
     return true;
@@ -898,7 +1018,7 @@ export function createGame({ scene, camera, world, fx }) {
       // le tireur qui rate se prend la tête dans les mains
       b.shooter.react('dismay');
       if (isHuman(b.shooter)) {
-        ui.flash(game.locals ? tr('Raté — {n}', { n: tr(b.shooter.nation.name) }) : tr('Raté…'), 'small', 1);
+        ui.flash(game.locals ? tr('Raté — {n}', { n: tr(b.shooter.nation.name) }) : punch('miss'), 'small', 1);
         audio.miss();
       }
     }
@@ -1079,6 +1199,9 @@ export function createGame({ scene, camera, world, fx }) {
     game.round = 1;
     game.hintShown = false;
     game.windAnnounced = false;
+    resetMatchStats();
+    rollWeather();
+    game.introShow = true;
     ui.startMatch();
     ui.updateChips(game.shooters);
     ui.flash(tr('🏆 {stage} — face à {a} et {b}', {
@@ -1167,6 +1290,8 @@ export function createGame({ scene, camera, world, fx }) {
     };
     ui.startGolf(game.playerIdx);
     ui.syncClub(game.club);
+    // météo seedée avec le parcours : le même ciel pour tous au jour le jour
+    applyWeather(weatherForSeed(seed));
     startHole(0);
   }
 
@@ -1665,6 +1790,58 @@ export function createGame({ scene, camera, world, fx }) {
     game.endInfo = null;
   }
 
+  // -------------------------------------------------------------- replay ---
+
+  // le beau but se rejoue au ralenti, caméra plantée derrière la cage :
+  // le ballon grossit en approche. Un toucher passe le replay.
+  function startReplay() {
+    const r = game.pendingReplay;
+    game.pendingReplay = null;
+    const b = game.balls[r.ballIdx];
+    if (!b || !r.path.length) return;
+    game.replay = {
+      path: r.path, impact: r.impact, ballIdx: r.ballIdx,
+      t: -0.45, i: 0, done: false, endAt: 0,
+      saved: b.mesh.position.clone(), savedVisible: b.mesh.visible,
+    };
+    game.state = 'replay';
+    game.t = 0;
+    ui.iris(() => {
+      if (game.state !== 'replay' || !game.replay) return;
+      // bascule au noir : caméra téléportée derrière la cage, ballon au départ
+      game.camPos.set(r.impact.x * 0.35, TARGET_ROOF_Y + 2.4, r.impact.z - 7.5);
+      game.camLook.copy(r.path[0].p);
+      b.mesh.visible = true;
+      b.mesh.position.copy(r.path[0].p);
+      ui.flash(tr('🎬 REPLAY'), 'round', 1.5);
+    });
+  }
+
+  function endReplay() {
+    const R = game.replay;
+    if (!R) return;
+    const b = game.balls[R.ballIdx];
+    game.replay = null;
+    ui.iris(() => {
+      b.mesh.position.copy(R.saved);
+      b.mesh.visible = R.savedVisible;
+      const px = aimShooter().homeX;
+      game.camPos.set(px * 0.55, 6.4, 13);
+      game.camLook.set(px * 0.25, 1.0, -20);
+    });
+    game.state = 'resolve';
+    game.t = 0.75; // la résolution reprend là où elle s'était arrêtée
+    game.resolvePhase = 0;
+  }
+
+  // ------------------------------------------------------------- survie ----
+
+  function endSurvival() {
+    game.state = 'over';
+    game.t = 0;
+    game.endInfo = { survival: true, streak: game.survival.streak };
+  }
+
   // -------------------------------------------------------------- podium ---
 
   // le champion du Tournoi monte sur la boîte : orbite caméra, confettis,
@@ -1716,6 +1893,11 @@ export function createGame({ scene, camera, world, fx }) {
       const a = game.t * 0.42 + Math.PI * 0.15;
       wantPos = new THREE.Vector3(Math.sin(a) * 8.5, 4.4, 5.5 + Math.cos(a) * 8.5);
       wantLook = new THREE.Vector3(0, 1.9, 5.7);
+    } else if (game.state === 'replay' && game.replay) {
+      // replay : plantée derrière la cage, elle regarde le ballon arriver
+      const R = game.replay;
+      wantPos = new THREE.Vector3(R.impact.x * 0.35, TARGET_ROOF_Y + 2.4, R.impact.z - 7.5);
+      wantLook = game.balls[R.ballIdx].mesh.position.clone();
     } else if (game.slowmo > 0 && game.goalCamPoint) {
       // ralenti de but : la caméra plonge vers la cage
       const p = game.goalCamPoint;
@@ -1738,7 +1920,24 @@ export function createGame({ scene, camera, world, fx }) {
       wantPos = new THREE.Vector3(px * 0.55, 6.4, 13);
       wantLook = new THREE.Vector3(px * 0.25, 1.0, -20);
       // bannière de manche : petit travelling depuis la cage vers le tireur
-      if (game.state === 'intro') {
+      if (game.state === 'intro' && game.introShow) {
+        // manche 1 : la caméra passe d'abord FACE au trio (célébrations
+        // signature, saluts), puis glisse vers sa position de jeu
+        const u = Math.min(1, game.t / 3.4);
+        if (u < 0.55) {
+          const drift = Math.sin(game.t * 0.7) * 1.1;
+          wantPos.set(drift, 2.2, -3.4);
+          wantLook.set(0, 1.7, 3.5);
+        } else {
+          const e = 1 - (1 - (u - 0.55) / 0.45) ** 3;
+          wantPos.set(
+            0 + (px * 0.55 - 0) * e,
+            2.2 + (6.4 - 2.2) * e,
+            -3.4 + (13 + 3.4) * e,
+          );
+          wantLook.lerpVectors(new THREE.Vector3(0, 1.7, 3.5), wantLook, e);
+        }
+      } else if (game.state === 'intro') {
         const u = Math.min(1, game.t / 1.35);
         const e = 1 - (1 - u) * (1 - u) * (1 - u);
         const glz = world.goalLineZ();
@@ -1783,6 +1982,8 @@ export function createGame({ scene, camera, world, fx }) {
 
   function pointerDown(x, y) {
     audio.unlock();
+    // un toucher pendant le replay le passe
+    if (game.state === 'replay') { endReplay(); return; }
     // on tolère un début de visée pendant la bannière de manche
     if (!AIM_STATES.includes(game.state) || game.aiming) return;
     game.aiming = true;
@@ -1886,6 +2087,21 @@ export function createGame({ scene, camera, world, fx }) {
     // le vent s'entend pendant la visée, proportionnel à sa force
     const windNow = game.mode === 'golf' && game.golf ? game.golf.wind : game.wind;
     audio.setWind(AIM_STATES.includes(game.state) ? windNow : 0);
+    // la rumeur des tribunes suit la tension : montée au fil des manches,
+    // pic pendant le vol et le podium, discrète au Parcours
+    {
+      let crowd = 0;
+      if (game.state === 'podium') crowd = 0.3;
+      else if (game.state === 'title') crowd = 0;
+      else if (game.mode === 'golf') crowd = 0.05;
+      else if (game.shooters.length) {
+        const prog = game.survival ? Math.min(1, game.round / 12)
+          : Math.min(1, game.round / Math.max(1, game.roundsMax));
+        crowd = 0.09 + prog * 0.1
+          + (game.state === 'flight' || game.state === 'replay' ? 0.07 : 0);
+      }
+      audio.setCrowd(crowd);
+    }
     // drones et anneaux des colonnes d'air du trou en cours
     if (game.golf && game.golf.course) game.golf.course.obs.update(sdt);
     updateCamera(dt);
@@ -1894,8 +2110,43 @@ export function createGame({ scene, camera, world, fx }) {
       case 'intro':
         game.t += dt;
         updateAiming(dt);
-        if (game.t > 1.5) beginAim();
+        // manche 1 : la présentation d'avant-match retient la caméra plus
+        // longtemps face au trio, le temps des célébrations signature
+        if (game.t > (game.introShow ? 3.4 : 1.5)) {
+          game.introShow = false;
+          beginAim();
+        }
         break;
+      case 'replay': {
+        // le beau but se rejoue au ralenti (un toucher passe) ; le temps du
+        // replay est reconstruit depuis les instants enregistrés du vol
+        game.t += dt;
+        const R = game.replay;
+        if (!R) { game.state = 'resolve'; game.t = 0; game.resolvePhase = 0; break; }
+        R.t += dt * 0.55;
+        const rb = game.balls[R.ballIdx];
+        if (R.t >= 0 && !R.done) {
+          const path = R.path;
+          let i = R.i;
+          while (i < path.length - 1 && path[i + 1].t < R.t + path[0].t) i += 1;
+          R.i = i;
+          if (i >= path.length - 1) {
+            R.done = true;
+            R.endAt = game.t + 0.55;
+            world.punchDuelNet(); // l'impact au filet, revu de derrière la cage
+            fx.burst(R.impact.clone(), [0xffffff, 0xffe08a], 26, 4);
+          } else {
+            const a = path[i];
+            const c = path[i + 1];
+            const f = Math.min(1, Math.max(0,
+              (R.t + path[0].t - a.t) / Math.max(1e-4, c.t - a.t)));
+            rb.mesh.position.lerpVectors(a.p, c.p, f);
+            fx.trail(rb.mesh.position.clone(), 0xffe08a, 0.7);
+          }
+        }
+        if ((R.done && game.t >= R.endAt) || game.t > 8) endReplay();
+        break;
+      }
       case 'aim':
         updateAiming(dt);
         // duel à 2 : le ballon du premier joueur vole pendant la visée du second
@@ -1915,9 +2166,27 @@ export function createGame({ scene, camera, world, fx }) {
       case 'resolve':
         game.t += dt;
         for (const b of game.balls) updateBall(b, sdt); // les ballons finissent de rouler
+        // un beau but est en attente : on le rejoue avant la suite
+        if (game.pendingReplay && game.resolvePhase === 0 && game.t > 0.7 && game.slowmo <= 0) {
+          startReplay();
+          break;
+        }
         if (game.resolvePhase === 0 && game.t > 0.8) {
           game.resolvePhase = 1;
-          if (!game.challenge) applyMisses(); // pas de planches en Défi
+          if (!game.challenge && !game.survival) applyMisses(); // ni planches en Défi ni en Survie
+        }
+        // Survie : chaque but prolonge la série, le premier raté y met fin
+        if (game.survival && game.resolvePhase === 1 && game.t > 1.6) {
+          const pb = playerBall();
+          if (pb.pts > 0) {
+            game.survival.streak += pb.pts; // la lucarne compte double
+            ui.setSurvival(game.survival.streak, game.round + 1);
+            game.round += 1;
+            startRound();
+          } else {
+            endSurvival();
+          }
+          break;
         }
         if (game.resolvePhase === 1 && game.t > (game.challenge ? 1.2 : 2.2)) {
           game.resolvePhase = 2;
@@ -2051,7 +2320,7 @@ export function createGame({ scene, camera, world, fx }) {
           game.podiumShown = true;
           const p = game.podiumPayload;
           const meMap = { [game.playerIdx]: tr(' (vous)') };
-          ui.showEnd(p.title, p.cls, game.shooters, meMap, p.result);
+          ui.showEnd(p.title, p.cls, game.shooters, meMap, p.result, game.matchStats);
         }
         break;
       }
@@ -2067,6 +2336,11 @@ export function createGame({ scene, camera, world, fx }) {
             if (c.done.win) audio.bonus();
             ui.showChallengeEnd(c.idx, c.spec, c.done.win, c.done.stars,
               c.done.win && c.idx + 1 < CHALLENGES.length);
+            break;
+          }
+          if (end.survival) {
+            // fin de Survie : la série est le score, record local à battre
+            ui.showSurvivalEnd(end.streak, game.roster[0], game.matchStats);
             break;
           }
           audio[end.sound]();
@@ -2096,7 +2370,7 @@ export function createGame({ scene, camera, world, fx }) {
             && playerShooter().lives === 3) {
             bumpStats({ perfectWins: 1 });
           }
-          ui.showEnd(title, cls, game.shooters, meMap, result);
+          ui.showEnd(title, cls, game.shooters, meMap, result, game.matchStats);
         }
         break;
       default:
@@ -2116,7 +2390,7 @@ export function createGame({ scene, camera, world, fx }) {
   return {
     update, pointerDown, pointerMove, pointerUp, pointerCancel,
     startMatch, startMatch2, startGolf, startTournament, tournamentNext, toTitle, setClub,
-    startChallenge, challengeReplay,
+    startChallenge, challengeReplay, startSurvival,
     currentWind() { return game.mode === 'golf' && game.golf ? game.golf.wind : game.wind; },
     hasTournamentNext() { return !!(game.tournament && game.tournament.pendingNext); },
     hasChallengePending() { return !!(game.challenge && game.challenge.done); },

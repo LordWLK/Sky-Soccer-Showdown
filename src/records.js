@@ -213,3 +213,12 @@ export function recordTournament(won) {
   save(r);
   return { wins: r.tournamentWins, runs: r.tournamentRuns };
 }
+
+// Survie : la meilleure série de buts d'affilée
+export function recordSurvival(streak) {
+  const r = load();
+  const prev = r.survivalBest || 0;
+  r.survivalBest = Math.max(prev, streak);
+  save(r);
+  return { best: r.survivalBest, isNew: streak > prev && streak > 0 };
+}

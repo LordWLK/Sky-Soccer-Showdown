@@ -89,6 +89,43 @@ const EN = {
   '⚠️ Obstacles entre les toits !': '⚠️ Obstacles between the rooftops!',
   'Câble ! ⚡': 'Cable! ⚡',
   'Le poteau !': 'Off the post!',
+  // punchlines de commentaire
+  'EN PLEINE LUCARNE ! +2': 'RIGHT IN THE TOP CORNER! +2',
+  'Sous la barre, +2 !': 'Under the bar, +2!',
+  'Quelle courbe ! ⚽': 'What a curve! ⚽',
+  'Enroulé parfait ! ⚽': 'Perfectly curled! ⚽',
+  'Le ballon a fait le tour !': 'The ball bent all the way!',
+  'Le gardien n\'a rien vu ! ⚽': 'The keeper never saw it! ⚽',
+  'Imparable ! ⚽': 'Unstoppable! ⚽',
+  'Au fond du filet !': 'Into the back of the net!',
+  'Frappe chirurgicale ! ⚽': 'Surgical strike! ⚽',
+  'Plein centre ! ⚽': 'Right down the middle! ⚽',
+  'Quelle parade ! 🧤': 'What a save! 🧤',
+  'Sorti par le gardien !': 'Kept out by the keeper!',
+  'À côté !': 'Wide!',
+  'Trop enlevé…': 'Sailed over…',
+  // météo d'ambiance
+  '🌧️ Pluie sur les toits': '🌧️ Rain over the rooftops',
+  '❄️ Neige sur la ville': '❄️ Snow over the city',
+  '🌫️ Brume épaisse': '🌫️ Thick haze',
+  // replay
+  '🎬 REPLAY': '🎬 REPLAY',
+  // Survie
+  'Survie': 'Survival',
+  'Un tir, un but, on continue — le premier raté met fin à la série':
+    'One shot, one goal, keep going — the first miss ends the streak',
+  'Tir n°{n}': 'Shot #{n}',
+  '🔥 Série : {n}': '🔥 Streak: {n}',
+  'Tir {n}': 'Shot {n}',
+  '🔥 RECORD ! Série de {n}': '🔥 NEW RECORD! Streak of {n}',
+  '💥 SÉRIE TERMINÉE — {n}': '💥 STREAK OVER — {n}',
+  'Meilleure série : {n} buts': 'Best streak: {n} goals',
+  '🔥 Sky Soccer Showdown — série de {n} buts d\'affilée en Survie avec {nat} ! {url}':
+    '🔥 Sky Soccer Showdown — a streak of {n} goals in Survival with {nat}! {url}',
+  '⚡ Meilleure série en Survie': '⚡ Best Survival streak',
+  // stats de fin de match
+  '🎯 Précision {p} % · {l} lucarnes · plus longue frappe {d} m':
+    '🎯 Accuracy {p}% · {l} top corners · longest strike {d} m',
   'La barre !': 'Off the bar!',
   'Drone percuté ! 🚁': 'Drone hit! 🚁',
   'La grue ! 🏗️': 'The crane! 🏗️',

@@ -248,6 +248,12 @@ h1 {
 }
 #share-btn:hover { transform: scale(1.05); }
 
+.end-note {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #b9c6e2;
+  text-align: center;
+}
 .end-record {
   margin-top: 12px;
   font-size: 13.5px;

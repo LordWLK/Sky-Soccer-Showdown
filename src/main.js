@@ -61,6 +61,7 @@ initUI({
       else if (mode === 'daily') game.startGolf(teamIdx, { daily: true });
       else if (mode === 'tourney') game.startTournament(teamIdx);
       else if (mode === 'duel2') game.startMatch2(teamIdx, team2Idx);
+      else if (mode === 'survie') game.startSurvival(teamIdx);
       else game.startMatch(teamIdx);
     };
     if (!tutoSeenSession && !loadPrefs().tutorialSeen) {

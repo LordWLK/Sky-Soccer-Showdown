@@ -290,6 +290,14 @@ export class Shooter {
           lean: -0.1 * w + rock, lKnee: -0.12 * w, rKnee: -0.12 * w,
         });
         neckTo(0, 0.3 * w, 5);
+      } else if (this.reactKind === 'wave') {
+        // salut au public : bras levé qui balaie (présentation d'avant-match)
+        const wavw = Math.sin(r * 7) * 0.35;
+        set({
+          rShZ: (2.6 + wavw) * w, rEl: -0.5 * w,
+          lean: -0.06 * w, twist: 0.1 * w,
+        });
+        neckTo(0.1 * w, -0.15 * w, 6);
       } else {
         // bras croisés, tête secouée : non non non
         set({

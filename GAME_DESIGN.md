@@ -368,8 +368,37 @@ sort** parmi les autres nations à chaque partie.
     se rouvre) au lancement d'une partie, entre les trous du Parcours et
     au retour au menu — purement cosmétiques, la machine à états ne les
     attend jamais.
-- **v4 — idées** : duel à 2 en ligne, classement mondial du Parcours du
-  jour, replays de buts, décors de ville alternatifs.
+- **v4 — le spectacle** ✅ *(cette itération)* :
+  - **Replay cinéma** : la trajectoire du tir du joueur est enregistrée en
+    vol ; sur un but d'exception (lucarne, brossé ≥ 1,4 m/s², frappe de
+    46 m et plus), la manche se fige et le vol se rejoue au ralenti
+    (×0,55) depuis une caméra plantée derrière la cage — le ballon
+    grossit en approche, le filet se gonfle à l'impact, un toucher passe.
+    Encadré par deux transitions iris, purement inséré dans la phase de
+    résolution : aucun impact sur les règles.
+  - **Présentation d'avant-match** : à la manche 1, la caméra part face
+    au trio — votre joueur joue sa célébration signature, les rivaux
+    saluent — puis glisse en position de jeu.
+  - **Ambiance sonore de stade** : rumeur de foule continue (bruit brun
+    filtré qui « respire »), niveau qui suit la tension (manche, vol,
+    podium) ; « ohhh » choral déçu sur poteau, barre et parade.
+  - **Météo d'ambiance** : pluie (traits filants + crachin audible),
+    neige (flocons portés par le vent réel), brume (brouillard resserré,
+    voiles épaissis). Tirée au sort en Duel/Tournoi/Survie, **seedée avec
+    le parcours** au golf — même ciel pour tous au Parcours du jour.
+    Aucun effet physique : le vent reste le seul aléa de jeu.
+  - **Mode Survie** : seul face à la cage, un tir par manche — but = la
+    série continue (lucarne +2), raté/parade/obstacle = fin. La cage
+    recule (+2,2 m/tir, plafond 58 m), le vent forcit sur ~10 tirs, le
+    gardien accélère, les obstacles arrivent, la nuit tombe. Meilleure
+    série en record local (écran 🏅) + partage.
+  - **Commentaire vivant** : punchlines contextuelles tirées d'un pool
+    par type d'action (lucarne, brossé, gardien battu, but, parade,
+    raté) — en français comme en anglais.
+  - **Stats de fin de match** : précision, lucarnes, plus longue frappe
+    au but sous le tableau des scores (Duel, Tournoi, Survie).
+- **v5 — idées** : duel à 2 en ligne, classement mondial du Parcours du
+  jour, décors de ville alternatifs.
 
 ## 8. Référence visuelle — la publicité d'origine
 

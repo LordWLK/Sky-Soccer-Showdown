@@ -122,6 +122,62 @@ function ensureWind() {
   src.start();
 }
 
+// rumeur de foule continue : bruit très grave qui « respire » lentement,
+// dont le niveau suit la tension du match (setCrowd)
+let crowdGain = null;
+function ensureCrowd() {
+  if (crowdGain || !ctx) return;
+  const len = ctx.sampleRate * 3;
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  // bruit brun (marche aléatoire) : plus rond qu'un bruit blanc filtré
+  let v = 0;
+  for (let i = 0; i < len; i++) {
+    v = (v + (Math.random() * 2 - 1) * 0.02) * 0.998;
+    data[i] = v * 18;
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  const filt = ctx.createBiquadFilter();
+  filt.type = 'lowpass';
+  filt.frequency.value = 320;
+  crowdGain = ctx.createGain();
+  crowdGain.gain.value = 0;
+  // respiration lente de la tribune
+  const lfo = ctx.createOscillator();
+  const lfoGain = ctx.createGain();
+  lfo.frequency.value = 0.13;
+  lfoGain.gain.value = 0.25;
+  lfo.connect(lfoGain);
+  const depth = ctx.createGain();
+  depth.gain.value = 1;
+  lfoGain.connect(depth.gain);
+  src.connect(filt).connect(depth).connect(crowdGain).connect(master);
+  src.start();
+  lfo.start();
+}
+
+// crachin continu (météo pluie), volume selon l'intensité
+let rainGain = null;
+function ensureRain() {
+  if (rainGain || !ctx) return;
+  const len = ctx.sampleRate * 2;
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  const filt = ctx.createBiquadFilter();
+  filt.type = 'highpass';
+  filt.frequency.value = 2600;
+  rainGain = ctx.createGain();
+  rainGain.gain.value = 0;
+  src.connect(filt).connect(rainGain).connect(master);
+  src.start();
+}
+
 function noise({ dur = 0.15, vol = 0.4, freq = 1200, delay = 0 }) {
   const c = ensure();
   const t0 = c.currentTime + delay;
@@ -194,6 +250,40 @@ export const audio = {
     if (!ctx) return; // rien avant le premier geste utilisateur
     ensureWind();
     windGain.gain.setTargetAtTime(Math.min(0.3, Math.abs(level) * 0.22), ctx.currentTime, 0.4);
+  },
+  // rumeur de foule (0 = silence, ~0.3 = tribune en tension)
+  setCrowd(level) {
+    if (!ctx) return;
+    ensureCrowd();
+    crowdGain.gain.setTargetAtTime(Math.min(0.4, Math.max(0, level)), ctx.currentTime, 0.9);
+  },
+  // crachin de pluie continu (0 = silence)
+  setRain(level) {
+    if (!ctx) return;
+    ensureRain();
+    rainGain.gain.setTargetAtTime(Math.min(0.12, Math.max(0, level)), ctx.currentTime, 0.8);
+  },
+  // « ohhh » déçu des tribunes : poteau, parade, occasion manquée
+  ohh() {
+    const c = ensure();
+    const t0 = c.currentTime;
+    for (const [f, d] of [[300, 0], [380, 0.02], [240, 0.04]]) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 900;
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f, t0 + d);
+      o.frequency.exponentialRampToValueAtTime(f * 0.62, t0 + d + 0.55);
+      g.gain.setValueAtTime(0.0001, t0 + d);
+      g.gain.exponentialRampToValueAtTime(0.08, t0 + d + 0.12);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.7);
+      o.connect(lp).connect(g).connect(master);
+      o.start(t0 + d);
+      o.stop(t0 + d + 0.75);
+    }
+    noise({ dur: 0.5, vol: 0.14, freq: 800 });
   },
   miss() {
     tone({ type: 'sawtooth', from: 220, to: 90, dur: 0.3, vol: 0.2 });

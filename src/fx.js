@@ -54,6 +54,38 @@ export function createFx(scene) {
     }
   }
 
+  // ---- météo : gouttes filantes ou flocons dérivants, purement visuels ----
+  let weather = 'clear';
+  let weatherK = 0; // fondu d'apparition
+  const drops = [];
+  {
+    // la pluie : traits fins étirés ; la neige : les mêmes sprites en rond
+    const dropGeo = new THREE.PlaneGeometry(0.02, 0.55);
+    const dropMat = new THREE.MeshBasicMaterial({
+      color: 0xbdd4ee, transparent: true, opacity: 0.55, depthWrite: false,
+    });
+    for (let i = 0; i < 170; i++) {
+      const m = new THREE.Mesh(dropGeo, dropMat);
+      m.visible = false;
+      scene.add(m);
+      const flake = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: dotTex, color: 0xf4f8ff, transparent: true, opacity: 0.85, depthWrite: false,
+      }));
+      const fs = 0.1 + Math.random() * 0.12;
+      flake.scale.set(fs, fs, 1);
+      flake.visible = false;
+      scene.add(flake);
+      drops.push({
+        m, flake,
+        x: (Math.random() * 2 - 1) * 30,
+        y: Math.random() * 20,
+        z: 16 - Math.random() * 80,
+        v: 16 + Math.random() * 8, // vitesse de chute (pluie)
+        sway: Math.random() * 9,
+      });
+    }
+  }
+
   function trailMat(color) {
     if (!trailMats.has(color)) {
       trailMats.set(color, new THREE.SpriteMaterial({
@@ -95,6 +127,12 @@ export function createFx(scene) {
     ambience(tod, wind) {
       dusk = 4 * tod * (1 - tod); // maximal au crépuscule
       windAmb = wind || 0;
+    },
+
+    // météo visuelle : 'clear', 'rain', 'snow' (la brume est gérée par world)
+    setWeather(type) {
+      weather = type === 'rain' || type === 'snow' ? type : 'clear';
+      if (weather === 'clear') weatherK = 0; // coupure nette au retour au calme
     },
 
     // onde de choc lumineuse dans le plan du but
@@ -154,6 +192,31 @@ export function createFx(scene) {
           );
         }
         L.m.material.opacity = wStr * 0.85;
+      }
+      // météo : gouttes filantes (pluie) ou flocons portés par le vent (neige)
+      weatherK += ((weather === 'clear' ? 0 : 1) - weatherK) * Math.min(1, dt * 1.5);
+      if (weatherK > 0.02) {
+        const rain = weather === 'rain';
+        for (const D of drops) {
+          if (rain) {
+            D.y -= D.v * dt;
+            D.x += windAmb * 1.2 * dt;
+            D.m.rotation.z = -windAmb * 0.07;
+          } else {
+            D.y -= (0.9 + D.v * 0.05) * dt;
+            D.x += (windAmb * 1.8 + Math.sin(now * 1.6 + D.sway) * 0.7) * dt;
+          }
+          if (D.y < -2) { D.y = 19 + Math.random() * 3; D.x = (Math.random() * 2 - 1) * 30; }
+          if (D.x > 32) D.x = -32;
+          if (D.x < -32) D.x = 32;
+          D.m.visible = rain;
+          D.flake.visible = !rain;
+          const tgt = rain ? D.m : D.flake;
+          tgt.position.set(D.x, D.y, D.z);
+          tgt.material.opacity = (rain ? 0.5 : 0.85) * weatherK;
+        }
+      } else {
+        for (const D of drops) { D.m.visible = false; D.flake.visible = false; }
       }
       for (let i = trails.length - 1; i >= 0; i--) {
         const p = trails[i];
